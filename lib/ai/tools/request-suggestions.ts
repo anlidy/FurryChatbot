@@ -29,7 +29,7 @@ export const requestSuggestions = ({
     execute: async ({ documentId }) => {
       const document = await getDocumentById({ id: documentId });
 
-      if (!document || !document.content) {
+      if (!document?.content) {
         return {
           error: "Document not found",
         };
