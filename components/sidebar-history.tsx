@@ -163,7 +163,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     return (
       <SidebarGroup>
         <SidebarGroupContent>
-          <div className="flex w-full flex-row items-center justify-center gap-2 px-2 text-sm text-zinc-500">
+          <div className="flex w-full flex-row items-center justify-center gap-2 px-2 text-sm text-sidebar-foreground/50">
             Login to save and revisit previous chats!
           </div>
         </SidebarGroupContent>
@@ -204,7 +204,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
     return (
       <SidebarGroup>
         <SidebarGroupContent>
-          <div className="flex w-full flex-row items-center justify-center gap-2 px-2 text-sm text-zinc-500">
+          <div className="flex w-full flex-row items-center justify-center gap-2 px-2 text-sm text-sidebar-foreground/50">
             Your conversations will appear here once you start chatting!
           </div>
         </SidebarGroupContent>
@@ -340,11 +340,11 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
           />
 
           {hasReachedEnd ? (
-            <div className="mt-8 flex w-full flex-row items-center justify-center gap-2 px-2 text-sm text-zinc-500">
+            <div className="mt-8 flex w-full flex-row items-center justify-center gap-2 px-2 text-sm text-sidebar-foreground/50">
               You have reached the end of your chat history.
             </div>
           ) : (
-            <div className="mt-8 flex flex-row items-center gap-2 p-2 text-zinc-500 dark:text-zinc-400">
+            <div className="mt-8 flex flex-row items-center gap-2 p-2 text-sidebar-foreground/50">
               <div className="animate-spin">
                 <LoaderIcon />
               </div>

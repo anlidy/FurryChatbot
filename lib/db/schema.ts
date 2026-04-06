@@ -168,3 +168,50 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+export const userProfile = pgTable("UserProfile", {
+  id: uuid("id")
+    .primaryKey()
+    .notNull()
+    .references(() => user.id),
+  displayName: varchar("displayName", { length: 100 }),
+  avatarUrl: text("avatarUrl"),
+  preferences: json("preferences").$type<{
+    theme?: "light" | "dark" | "system";
+    defaultModel?: string;
+  }>(),
+  updatedAt: timestamp("updatedAt").notNull(),
+});
+
+export type UserProfile = InferSelectModel<typeof userProfile>;
+
+export const customProvider = pgTable("CustomProvider", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  userId: uuid("userId")
+    .notNull()
+    .references(() => user.id),
+  name: varchar("name", { length: 100 }).notNull(),
+  baseUrl: text("baseUrl").notNull(),
+  apiKey: text("apiKey").notNull(),
+  format: varchar("format", { enum: ["openai", "anthropic"] })
+    .notNull()
+    .default("openai"),
+  isEnabled: boolean("isEnabled").notNull().default(true),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+});
+
+export type CustomProvider = InferSelectModel<typeof customProvider>;
+
+export const customModel = pgTable("CustomModel", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  providerId: uuid("providerId")
+    .notNull()
+    .references(() => customProvider.id, { onDelete: "cascade" }),
+  modelId: varchar("modelId", { length: 200 }).notNull(),
+  displayName: varchar("displayName", { length: 200 }).notNull(),
+  isEnabled: boolean("isEnabled").notNull().default(true),
+  createdAt: timestamp("createdAt").notNull(),
+});
+
+export type CustomModel = InferSelectModel<typeof customModel>;

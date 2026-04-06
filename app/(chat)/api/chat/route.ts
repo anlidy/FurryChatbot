@@ -12,7 +12,6 @@ import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 import { auth, type UserType } from "@/app/(auth)/auth";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
-import { allowedModelIds } from "@/lib/ai/models";
 import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
 import { getLanguageModel } from "@/lib/ai/providers";
 import { createDocument } from "@/lib/ai/tools/create-document";
@@ -24,6 +23,7 @@ import {
   createStreamId,
   deleteChatById,
   getChatById,
+  getCustomProviderById,
   getMessageCountByUserId,
   getMessagesByChatId,
   saveChat,
@@ -75,8 +75,17 @@ export async function POST(request: Request) {
       return new ChatbotError("unauthorized:chat").toResponse();
     }
 
-    if (!allowedModelIds.has(selectedChatModel)) {
+    const slashIndex = selectedChatModel.indexOf("/");
+    if (slashIndex === -1) {
       return new ChatbotError("bad_request:api").toResponse();
+    }
+    const providerId = selectedChatModel.slice(0, slashIndex);
+    const provider = await getCustomProviderById({ id: providerId });
+    if (!provider || provider.userId !== session.user.id) {
+      return new ChatbotError("bad_request:api").toResponse();
+    }
+    if (!provider.isEnabled) {
+      return Response.json({ error: "Provider is disabled" }, { status: 400 });
     }
 
     await checkIpRateLimit(ipAddress(request));
@@ -112,7 +121,10 @@ export async function POST(request: Request) {
         title: "New chat",
         visibility: selectedVisibilityType,
       });
-      titlePromise = generateTitleFromUserMessage({ message });
+      titlePromise = generateTitleFromUserMessage({
+        message,
+        userId: session.user.id,
+      });
     }
 
     const uiMessages = isToolApprovalFlow
@@ -153,8 +165,10 @@ export async function POST(request: Request) {
     const stream = createUIMessageStream({
       originalMessages: isToolApprovalFlow ? uiMessages : undefined,
       execute: async ({ writer: dataStream }) => {
+        const model = await getLanguageModel(selectedChatModel);
+
         const result = streamText({
-          model: getLanguageModel(selectedChatModel),
+          model,
           system: systemPrompt({ selectedChatModel, requestHints }),
           messages: modelMessages,
           stopWhen: stepCountIs(5),
@@ -233,15 +247,7 @@ export async function POST(request: Request) {
           });
         }
       },
-      onError: (error) => {
-        if (
-          error instanceof Error &&
-          error.message?.includes(
-            "AI Gateway requires a valid credit card on file to service requests"
-          )
-        ) {
-          return "AI Gateway requires a valid credit card on file to service requests. Please visit https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dadd-credit-card to add a card and unlock your free credits.";
-        }
+      onError: () => {
         return "Oops, an error occurred!";
       },
     });
@@ -272,15 +278,6 @@ export async function POST(request: Request) {
 
     if (error instanceof ChatbotError) {
       return error.toResponse();
-    }
-
-    if (
-      error instanceof Error &&
-      error.message?.includes(
-        "AI Gateway requires a valid credit card on file to service requests"
-      )
-    ) {
-      return new ChatbotError("bad_request:activate_gateway").toResponse();
     }
 
     console.error("Unhandled error in chat API:", error, { vercelId });

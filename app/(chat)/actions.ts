@@ -19,11 +19,14 @@ export async function saveChatModelAsCookie(model: string) {
 
 export async function generateTitleFromUserMessage({
   message,
+  userId,
 }: {
   message: UIMessage;
+  userId: string;
 }) {
+  const model = await getTitleModel(userId);
   const { text } = await generateText({
-    model: getTitleModel(),
+    model,
     system: titlePrompt,
     prompt: getTextFromMessage(message),
   });
