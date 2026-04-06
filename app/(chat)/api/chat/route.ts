@@ -51,6 +51,12 @@ function getStreamContext() {
 
 export { getStreamContext };
 
+/**
+ * Streams a chat response for an incoming POST request by validating the request and session, invoking the selected model (with optional tools), and persisting chats and messages as needed.
+ *
+ * The handler enforces provider ownership and enabled state, IP and per-user message rate limits, and supports a "tool approval" flow vs. normal chat flow. It persists incoming user messages, may create a new chat and generate a title, converts messages for the model, runs a streaming model call (optionally executing tools), writes streaming UI messages back to the client, updates or saves finished messages, and—when configured with Redis—can register a resumable SSE stream. Errors and validation failures are returned as ChatbotError responses.
+ *
+ * @returns A Response that streams UI messages for the chat on success; on failure returns a ChatbotError response indicating the specific error condition (for example: bad_request, unauthorized, forbidden, rate_limit, or offline). */
 export async function POST(request: Request) {
   let requestBody: PostRequestBody;
 

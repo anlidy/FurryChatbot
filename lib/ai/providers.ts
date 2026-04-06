@@ -34,6 +34,14 @@ export const myProvider = isTestEnvironment
     })()
   : null;
 
+/**
+ * Create a provider API client instance for the specified provider format using the given base URL and API key.
+ *
+ * @param format - Provider format, either "openai" or "anthropic"
+ * @param baseUrl - Base URL for the provider's API
+ * @param apiKey - API key used to authenticate requests
+ * @returns An instantiated client configured for the specified provider
+ */
 function createProviderInstance(
   format: "openai" | "anthropic",
   baseUrl: string,
@@ -45,6 +53,15 @@ function createProviderInstance(
   return createOpenAI({ baseURL: baseUrl, apiKey });
 }
 
+/**
+ * Resolve a language model instance from a provider-scoped model identifier.
+ *
+ * @param modelId - Provider-scoped identifier in the form `providerId/modelId` (e.g. `acme/my-model`).
+ * @returns A language model instance for the specified provider and model. If the model name indicates a reasoning variant (e.g., ends with `-thinking` or contains `reasoning`), the returned instance is wrapped with reasoning middleware.
+ * @throws Error if `modelId` is not in the expected `providerId/modelId` format.
+ * @throws Error if the referenced provider does not exist.
+ * @throws Error if the referenced provider is disabled.
+ */
 export async function getLanguageModel(modelId: string) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel(modelId);
@@ -89,6 +106,13 @@ export async function getLanguageModel(modelId: string) {
   return instance(cleanModelId);
 }
 
+/**
+ * Selects the user's preferred language model or falls back to the first enabled provider model.
+ *
+ * @param userId - ID of the user whose model should be selected
+ * @returns The language model instance determined for the user
+ * @throws Error when no enabled models are available: "No models available. Please configure a provider in Settings."
+ */
 async function getSystemModel(userId: string) {
   const profile = await getUserProfile({ userId });
   const systemModelId = profile?.preferences?.defaultModel;
@@ -109,6 +133,14 @@ async function getSystemModel(userId: string) {
   return getLanguageModel(fallbackId);
 }
 
+/**
+ * Selects the language model to use for generating titles for the specified user.
+ *
+ * If running in the test environment, returns the test provider's "title-model"; otherwise returns the user's configured system model.
+ *
+ * @param userId - The ID of the user whose model preferences should be used
+ * @returns The language model instance to use for title generation for the given user
+ */
 export async function getTitleModel(userId: string) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel("title-model");
@@ -116,6 +148,12 @@ export async function getTitleModel(userId: string) {
   return await getSystemModel(userId);
 }
 
+/**
+ * Selects the language model to use for artifact generation for the specified user.
+ *
+ * @param userId - The ID of the user whose preferences or enabled models are used to select the model
+ * @returns The language model instance to use for generating artifacts
+ */
 export async function getArtifactModel(userId: string) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel("artifact-model");

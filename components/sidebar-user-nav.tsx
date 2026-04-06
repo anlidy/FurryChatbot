@@ -24,6 +24,14 @@ import { toast } from "./toast";
 
 const profileFetcher = (url: string) => fetch(url).then((r) => r.json());
 
+/**
+ * Renders a sidebar user menu showing the user's avatar, display label, and actions for Settings and authentication.
+ *
+ * The displayed avatar and name prefer profile settings when available and fall back to defaults derived from `user`. The menu shows a loading placeholder while authentication status is being determined. Selecting "Settings" navigates to the settings page; the authentication action either navigates to the login page for guests or signs the user out.
+ *
+ * @param user - The current user's basic information (used as fallback for avatar and label)
+ * @returns A JSX element containing the sidebar user navigation menu
+ */
 export function SidebarUserNav({ user }: { user: User }) {
   const router = useRouter();
   const { data, status } = useSession();

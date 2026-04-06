@@ -13,6 +13,12 @@ import {
 } from "@/lib/db/queries";
 import { convertToUIMessages } from "@/lib/utils";
 
+/**
+ * Server component entry that renders the chat page inside a minimal Suspense fallback.
+ *
+ * @param props.params - A promise that resolves to an object containing the chat `id`
+ * @returns A React element that renders a Suspense boundary with the ChatPage for the given `id`
+ */
 export default function Page(props: { params: Promise<{ id: string }> }) {
   return (
     <Suspense fallback={<div className="flex h-dvh" />}>
@@ -21,6 +27,12 @@ export default function Page(props: { params: Promise<{ id: string }> }) {
   );
 }
 
+/**
+ * Fetches and validates chat and user data, derives the initial chat model and messages, and renders the chat UI with a data stream handler.
+ *
+ * @param params - A promise that resolves to route parameters containing the `id` of the chat
+ * @returns A React fragment containing the Chat component initialized with the resolved chat, model, and messages, alongside a DataStreamHandler
+ */
 async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const chat = await getChatById({ id });

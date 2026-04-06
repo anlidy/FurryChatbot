@@ -17,6 +17,13 @@ export async function saveChatModelAsCookie(model: string) {
   cookieStore.set("chat-model", model);
 }
 
+/**
+ * Generates a concise, cleaned title from a user's message using a model selected for the user.
+ *
+ * @param message - The UI message whose text will be used to generate the title
+ * @param userId - The user's identifier used to select the title-generation model
+ * @returns The generated title with leading markdown/quote characters and trailing quotes removed, trimmed of surrounding whitespace
+ */
 export async function generateTitleFromUserMessage({
   message,
   userId,

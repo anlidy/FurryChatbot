@@ -24,6 +24,16 @@ type Provider = {
   isEnabled: boolean;
 };
 
+/**
+ * Render a form for creating a new AI provider or editing an existing one, and (when editing) manage the provider's models.
+ *
+ * Populates form fields from `provider` when present, handles create/update requests, and provides UI to add, delete, and toggle models.
+ *
+ * @param provider - Optional provider to edit; when present the component initializes fields from it and shows the models section
+ * @param onCancel - Called when the user navigates back or cancels the form
+ * @param onSaved - Called after the provider is successfully created or updated
+ * @returns The rendered provider form UI
+ */
 export function ProviderForm({
   provider,
   onCancel,

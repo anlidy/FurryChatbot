@@ -49,6 +49,25 @@ function setCookie(name: string, value: string) {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}`;
 }
 
+/**
+ * Renders the multimodal chat input UI including text entry, file/image attachments, paste-to-upload, upload queue, attachment previews, model selector, and send/stop controls.
+ *
+ * @param chatId - Current chat identifier used to update the browser URL on submit
+ * @param input - Current text value of the input textarea
+ * @param setInput - Setter for the input text state
+ * @param status - Chat status used to enable/disable submission and show stop control
+ * @param stop - Callback to stop an in-progress model response
+ * @param attachments - Array of current attachments shown in the preview bar
+ * @param setAttachments - Setter for the attachments array
+ * @param messages - Current UI messages for the chat
+ * @param setMessages - Setter to update the chat messages (used by stop control)
+ * @param sendMessage - Helper to send a message composed of attachment parts and text
+ * @param className - Optional container CSS class names
+ * @param selectedVisibilityType - Visibility selection passed to suggested actions
+ * @param selectedModelId - Currently selected model id used by model selector and attachment logic
+ * @param onModelChange - Optional callback invoked when the selected model changes
+ * @returns The JSX element for the multimodal input area, including attachment previews, textarea, toolbar (attachments, model selector), and submit/stop button.
+ */
 function PureMultimodalInput({
   chatId,
   input,
@@ -457,6 +476,17 @@ function PureAttachmentsButton({
 
 const AttachmentsButton = memo(PureAttachmentsButton);
 
+/**
+ * Renders a compact model selector dropdown that lets the user choose a chat model.
+ *
+ * The component fetches available models from "/api/settings/models", groups them by provider,
+ * and displays them in a grouped dropdown. If no models are available, it renders a ghost
+ * button that navigates to "/settings/providers".
+ *
+ * @param selectedModelId - The id of the currently selected model.
+ * @param onModelChange - Optional callback invoked with the newly selected model id.
+ * @returns The JSX element for the compact model selector UI.
+ */
 function PureModelSelectorCompact({
   selectedModelId,
   onModelChange,

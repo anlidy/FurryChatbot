@@ -22,6 +22,21 @@ import { getChatHistoryPaginationKey } from "./sidebar-history";
 import { toast } from "./toast";
 import type { VisibilityType } from "./visibility-selector";
 
+/**
+ * Renders the chat interface for a single chat session.
+ *
+ * This component wires chat state, transport, and UI together: it initializes and
+ * manages messages, model and visibility selection, attachments, streaming data,
+ * vote loading, auto-resume of in-progress streams, and URL/search-param integration.
+ *
+ * @param id - Unique identifier for the chat session
+ * @param initialMessages - Initial list of chat messages to populate the conversation
+ * @param initialChatModel - ID of the initially selected chat model
+ * @param initialVisibilityType - Initial visibility setting for the chat
+ * @param isReadonly - When true, hides input controls and prevents sending messages
+ * @param autoResume - When true, attempts to resume an in-progress stream/session on mount
+ * @returns A React element that renders the full chat UI for the given session
+ */
 export function Chat({
   id,
   initialMessages,

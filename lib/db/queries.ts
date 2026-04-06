@@ -586,6 +586,12 @@ export async function createStreamId({
   }
 }
 
+/**
+ * Retrieves stream IDs associated with a chat ordered by creation time.
+ *
+ * @param chatId - The ID of the chat whose stream IDs should be returned
+ * @returns An array of stream IDs ordered from oldest to newest
+ */
 export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
   try {
     const streamIds = await db
@@ -604,7 +610,11 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
   }
 }
 
-// ─── User Profile ────────────────────────────────────────
+/**
+ * Fetches the user profile for the specified user.
+ *
+ * @returns The user profile row if found, or `null` if no profile exists.
+ */
 
 export async function getUserProfile({ userId }: { userId: string }) {
   try {
@@ -621,6 +631,18 @@ export async function getUserProfile({ userId }: { userId: string }) {
   }
 }
 
+/**
+ * Creates a new user profile or updates an existing one for the given user ID.
+ *
+ * When updating, `displayName`, `avatarUrl`, and `preferences` are applied only if their arguments are not `undefined` (passing `null` will set the stored value to `null`). When inserting, `displayName` and `avatarUrl` default to `null` and `preferences` defaults to an empty object if not provided.
+ *
+ * @param userId - The ID of the user whose profile will be created or updated
+ * @param displayName - The display name to set; if `undefined` the existing value is left unchanged, if `null` the stored value is set to `null`
+ * @param avatarUrl - The avatar URL to set; if `undefined` the existing value is left unchanged, if `null` the stored value is set to `null`
+ * @param preferences - User preferences to set; if `undefined` the existing value is left unchanged, if omitted on insert defaults to an empty object
+ * @returns The inserted or updated `userProfile` row(s)
+ * @throws ChatbotError with code `bad_request:database` when the database operation fails
+ */
 export async function upsertUserProfile({
   userId,
   displayName,
@@ -673,7 +695,13 @@ export async function upsertUserProfile({
   }
 }
 
-// ─── Custom Providers ────────────────────────────────────
+/**
+ * Retrieves all custom providers belonging to a user, ordered by creation time ascending.
+ *
+ * @param userId - The id of the user whose custom providers to fetch
+ * @returns An array of custom provider rows for the specified user ordered by `createdAt` ascending
+ * @throws ChatbotError with code `"bad_request:database"` if the database query fails
+ */
 
 export async function getCustomProviders({ userId }: { userId: string }) {
   try {
@@ -690,6 +718,13 @@ export async function getCustomProviders({ userId }: { userId: string }) {
   }
 }
 
+/**
+ * Fetches a custom provider record by its id.
+ *
+ * @param id - The custom provider's id to look up
+ * @returns The custom provider row if found, `null` otherwise.
+ * @throws ChatbotError when the database query fails
+ */
 export async function getCustomProviderById({ id }: { id: string }) {
   try {
     const [provider] = await db
@@ -705,6 +740,12 @@ export async function getCustomProviderById({ id }: { id: string }) {
   }
 }
 
+/**
+ * Creates a new custom provider record for the given user.
+ *
+ * @returns The newly created custom provider row
+ * @throws ChatbotError with code "bad_request:database" when the database insert fails
+ */
 export async function createCustomProvider({
   userId,
   name,
@@ -740,6 +781,19 @@ export async function createCustomProvider({
   }
 }
 
+/**
+ * Updates the specified fields of a custom provider and returns the updated record.
+ *
+ * Only properties explicitly provided (not `undefined`) will be applied; `updatedAt` is set to the current time.
+ *
+ * @param id - The custom provider's id to update
+ * @param name - New display name for the provider (applied if provided)
+ * @param baseUrl - New base URL for the provider (applied if provided)
+ * @param apiKey - New API key for the provider (applied if provided)
+ * @param format - Provider format, either `"openai"` or `"anthropic"` (applied if provided)
+ * @param isEnabled - Whether the provider is enabled (applied if provided)
+ * @returns The updated custom provider row, or `undefined` if no matching provider was found
+ */
 export async function updateCustomProvider({
   id,
   ...updates
@@ -783,6 +837,12 @@ export async function updateCustomProvider({
   }
 }
 
+/**
+ * Deletes the custom provider identified by `id` and removes any custom models associated with that provider.
+ *
+ * @param id - The ID of the custom provider to delete
+ * @throws ChatbotError when the database operation fails
+ */
 export async function deleteCustomProvider({ id }: { id: string }) {
   try {
     await db.delete(customModel).where(eq(customModel.providerId, id));
@@ -795,7 +855,13 @@ export async function deleteCustomProvider({ id }: { id: string }) {
   }
 }
 
-// ─── Custom Models ───────────────────────────────────────
+/**
+ * Retrieves all custom models for a provider ordered by creation time.
+ *
+ * @param providerId - The ID of the custom provider whose models to fetch
+ * @returns An array of custom model records associated with `providerId`, ordered by `createdAt` ascending
+ * @throws ChatbotError when the database query fails
+ */
 
 export async function getCustomModels({ providerId }: { providerId: string }) {
   try {
@@ -812,6 +878,11 @@ export async function getCustomModels({ providerId }: { providerId: string }) {
   }
 }
 
+/**
+ * Fetches enabled custom models and their associated providers for the given user.
+ *
+ * @returns An array of objects each containing `model` (the `customModel` row) and `provider` (the `customProvider` row) for models and providers that are enabled and belong to the specified user
+ */
 export async function getEnabledCustomModelsByUserId({
   userId,
 }: {
@@ -840,6 +911,15 @@ export async function getEnabledCustomModelsByUserId({
   }
 }
 
+/**
+ * Creates a new custom model record tied to a provider.
+ *
+ * @param providerId - ID of the custom provider that will own the model
+ * @param modelId - Provider-specific model identifier
+ * @param displayName - Human-friendly name for the model
+ * @returns The newly created custom model row
+ * @throws ChatbotError with code "bad_request:database" if the database insert fails
+ */
 export async function createCustomModel({
   providerId,
   modelId,
@@ -868,6 +948,11 @@ export async function createCustomModel({
   }
 }
 
+/**
+ * Deletes the custom model with the specified id from the database.
+ *
+ * @param id - The id of the custom model to delete
+ */
 export async function deleteCustomModel({ id }: { id: string }) {
   try {
     await db.delete(customModel).where(eq(customModel.id, id));
@@ -879,6 +964,13 @@ export async function deleteCustomModel({ id }: { id: string }) {
   }
 }
 
+/**
+ * Set the enabled state of a custom model.
+ *
+ * @param id - The custom model's identifier
+ * @param isEnabled - Whether the model should be enabled (`true`) or disabled (`false`)
+ * @returns The updated custom model row, or `undefined` if no model with the given id exists
+ */
 export async function toggleCustomModel({
   id,
   isEnabled,
