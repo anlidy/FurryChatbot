@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import useSWR from "swr";
 import { useLocalStorage, useWindowSize } from "usehooks-ts";
 import {
   ModelSelector,
@@ -23,15 +24,10 @@ import {
   ModelSelectorInput,
   ModelSelectorItem,
   ModelSelectorList,
-  ModelSelectorLogo,
   ModelSelectorName,
   ModelSelectorTrigger,
 } from "@/components/ai-elements/model-selector";
-import {
-  chatModels,
-  DEFAULT_CHAT_MODEL,
-  modelsByProvider,
-} from "@/lib/ai/models";
+import type { ChatModel } from "@/lib/ai/models";
 import type { Attachment, ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -317,7 +313,7 @@ function PureMultimodalInput({
       />
 
       <PromptInput
-        className="rounded-xl border border-border bg-background p-3 shadow-xs transition-all duration-200 focus-within:border-border hover:border-muted-foreground/50"
+        className="rounded-2xl border border-border bg-card p-3 shadow-sm transition-all duration-200 focus-within:border-muted-foreground/30 hover:border-muted-foreground/30"
         onSubmit={(event) => {
           event.preventDefault();
           if (!input.trim() && attachments.length === 0) {
@@ -470,61 +466,77 @@ function PureModelSelectorCompact({
 }) {
   const [open, setOpen] = useState(false);
 
-  const selectedModel =
-    chatModels.find((m) => m.id === selectedModelId) ??
-    chatModels.find((m) => m.id === DEFAULT_CHAT_MODEL) ??
-    chatModels[0];
-  const [provider] = selectedModel.id.split("/");
+  const { data: models } = useSWR<ChatModel[]>(
+    "/api/settings/models",
+    (url: string) => fetch(url).then((r) => r.json())
+  );
 
-  // Provider display names
-  const providerNames: Record<string, string> = {
-    anthropic: "Anthropic",
-    openai: "OpenAI",
-    google: "Google",
-    xai: "xAI",
-    reasoning: "Reasoning",
-  };
+  const allModels = models ?? [];
+  const byProvider = allModels.reduce(
+    (acc, model) => {
+      const key = model.provider;
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(model);
+      return acc;
+    },
+    {} as Record<string, ChatModel[]>
+  );
+
+  const selectedModel = allModels.find((m) => m.id === selectedModelId);
+
+  if (allModels.length === 0) {
+    return (
+      <Button
+        className="h-8 px-2 text-muted-foreground"
+        data-testid="model-selector-trigger"
+        onClick={() => {
+          window.location.href = "/settings/providers";
+        }}
+        variant="ghost"
+      >
+        <ModelSelectorName>Configure a provider...</ModelSelectorName>
+      </Button>
+    );
+  }
 
   return (
     <ModelSelector onOpenChange={setOpen} open={open}>
       <ModelSelectorTrigger asChild>
-        <Button className="h-8 w-[200px] justify-between px-2" variant="ghost">
-          {provider && <ModelSelectorLogo provider={provider} />}
-          <ModelSelectorName>{selectedModel.name}</ModelSelectorName>
+        <Button
+          className="h-8 w-[200px] justify-between px-2"
+          data-testid="model-selector-trigger"
+          variant="ghost"
+        >
+          <ModelSelectorName>
+            {selectedModel?.name ?? "Select model"}
+          </ModelSelectorName>
         </Button>
       </ModelSelectorTrigger>
       <ModelSelectorContent>
         <ModelSelectorInput placeholder="Search models..." />
         <ModelSelectorList>
-          {Object.entries(modelsByProvider).map(
-            ([providerKey, providerModels]) => (
-              <ModelSelectorGroup
-                heading={providerNames[providerKey] ?? providerKey}
-                key={providerKey}
-              >
-                {providerModels.map((model) => {
-                  const logoProvider = model.id.split("/")[0];
-                  return (
-                    <ModelSelectorItem
-                      key={model.id}
-                      onSelect={() => {
-                        onModelChange?.(model.id);
-                        setCookie("chat-model", model.id);
-                        setOpen(false);
-                      }}
-                      value={model.id}
-                    >
-                      <ModelSelectorLogo provider={logoProvider} />
-                      <ModelSelectorName>{model.name}</ModelSelectorName>
-                      {model.id === selectedModel.id && (
-                        <CheckIcon className="ml-auto size-4" />
-                      )}
-                    </ModelSelectorItem>
-                  );
-                })}
-              </ModelSelectorGroup>
-            )
-          )}
+          {Object.entries(byProvider).map(([providerKey, providerModels]) => (
+            <ModelSelectorGroup heading={providerKey} key={providerKey}>
+              {providerModels.map((model) => (
+                <ModelSelectorItem
+                  key={model.id}
+                  onSelect={() => {
+                    onModelChange?.(model.id);
+                    setCookie("chat-model", model.id);
+                    setOpen(false);
+                  }}
+                  value={model.id}
+                >
+                  <ModelSelectorName>{model.name}</ModelSelectorName>
+                  {model.id === selectedModelId && (
+                    <CheckIcon className="ml-auto size-4" />
+                  )}
+                </ModelSelectorItem>
+              ))}
+            </ModelSelectorGroup>
+          ))}
         </ModelSelectorList>
       </ModelSelectorContent>
     </ModelSelector>

@@ -40,8 +40,16 @@ export const requestSuggestions = ({
         "userId" | "createdAt" | "documentCreatedAt"
       >[] = [];
 
+      const artifactModel = session.user?.id
+        ? await getArtifactModel(session.user.id)
+        : null;
+
+      if (!artifactModel) {
+        return { error: "No model available for suggestions" };
+      }
+
       const { partialOutputStream } = streamText({
-        model: getArtifactModel(),
+        model: artifactModel,
         system:
           "You are a help writing assistant. Given a piece of writing, please offer suggestions to improve the piece of writing and describe the change. It is very important for the edits to contain full sentences instead of just words. Max 5 suggestions.",
         prompt: document.content,

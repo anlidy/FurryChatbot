@@ -5,8 +5,12 @@ import { Suspense } from "react";
 import { auth } from "@/app/(auth)/auth";
 import { Chat } from "@/components/chat";
 import { DataStreamHandler } from "@/components/data-stream-handler";
-import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
-import { getChatById, getMessagesByChatId } from "@/lib/db/queries";
+import { getCustomModelsForUser } from "@/lib/ai/custom-models";
+import {
+  getChatById,
+  getMessagesByChatId,
+  getUserProfile,
+} from "@/lib/db/queries";
 import { convertToUIMessages } from "@/lib/utils";
 
 export default function Page(props: { params: Promise<{ id: string }> }) {
@@ -50,28 +54,28 @@ async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const cookieStore = await cookies();
   const chatModelFromCookie = cookieStore.get("chat-model");
 
-  if (!chatModelFromCookie) {
-    return (
-      <>
-        <Chat
-          autoResume={true}
-          id={chat.id}
-          initialChatModel={DEFAULT_CHAT_MODEL}
-          initialMessages={uiMessages}
-          initialVisibilityType={chat.visibility}
-          isReadonly={session?.user?.id !== chat.userId}
-        />
-        <DataStreamHandler />
-      </>
-    );
+  let fallbackModel = "";
+  if (session.user) {
+    const profile = await getUserProfile({ userId: session.user.id });
+    if (profile?.preferences?.defaultModel) {
+      fallbackModel = profile.preferences.defaultModel;
+    }
+    if (!fallbackModel) {
+      const models = await getCustomModelsForUser(session.user.id);
+      if (models.length > 0) {
+        fallbackModel = models[0].id;
+      }
+    }
   }
+
+  const chatModel = chatModelFromCookie?.value || fallbackModel;
 
   return (
     <>
       <Chat
         autoResume={true}
         id={chat.id}
-        initialChatModel={chatModelFromCookie.value}
+        initialChatModel={chatModel}
         initialMessages={uiMessages}
         initialVisibilityType={chat.visibility}
         isReadonly={session?.user?.id !== chat.userId}

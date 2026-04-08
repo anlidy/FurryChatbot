@@ -21,6 +21,8 @@ import { generateUUID } from "../utils";
 import {
   type Chat,
   chat,
+  customModel,
+  customProvider,
   type DBMessage,
   document,
   message,
@@ -29,6 +31,7 @@ import {
   suggestion,
   type User,
   user,
+  userProfile,
   vote,
 } from "./schema";
 import { generateHashedPassword } from "./utils";
@@ -597,6 +600,319 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatbotError(
       "bad_request:database",
       "Failed to get stream ids by chat id"
+    );
+  }
+}
+
+// ─── User Profile ────────────────────────────────────────
+
+export async function getUserProfile({ userId }: { userId: string }) {
+  try {
+    const [profile] = await db
+      .select()
+      .from(userProfile)
+      .where(eq(userProfile.id, userId));
+    return profile ?? null;
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to get user profile"
+    );
+  }
+}
+
+export async function upsertUserProfile({
+  userId,
+  displayName,
+  avatarUrl,
+  preferences,
+}: {
+  userId: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  preferences?: {
+    theme?: "light" | "dark" | "system";
+    defaultModel?: string;
+    systemModel?: string;
+  } | null;
+}) {
+  try {
+    const existing = await getUserProfile({ userId });
+    if (existing) {
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      if (displayName !== undefined) {
+        updates.displayName = displayName;
+      }
+      if (avatarUrl !== undefined) {
+        updates.avatarUrl = avatarUrl;
+      }
+      if (preferences !== undefined) {
+        updates.preferences = preferences;
+      }
+      return await db
+        .update(userProfile)
+        .set(updates)
+        .where(eq(userProfile.id, userId))
+        .returning();
+    }
+    return await db
+      .insert(userProfile)
+      .values({
+        id: userId,
+        displayName: displayName ?? null,
+        avatarUrl: avatarUrl ?? null,
+        preferences: preferences ?? {},
+        updatedAt: new Date(),
+      })
+      .returning();
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to upsert user profile"
+    );
+  }
+}
+
+// ─── Custom Providers ────────────────────────────────────
+
+export async function getCustomProviders({ userId }: { userId: string }) {
+  try {
+    return await db
+      .select()
+      .from(customProvider)
+      .where(eq(customProvider.userId, userId))
+      .orderBy(asc(customProvider.createdAt));
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to get custom providers"
+    );
+  }
+}
+
+export async function getCustomProviderById({ id }: { id: string }) {
+  try {
+    const [provider] = await db
+      .select()
+      .from(customProvider)
+      .where(eq(customProvider.id, id));
+    return provider ?? null;
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to get custom provider"
+    );
+  }
+}
+
+export async function createCustomProvider({
+  userId,
+  name,
+  baseUrl,
+  apiKey,
+  format,
+}: {
+  userId: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  format: "openai" | "anthropic";
+}) {
+  try {
+    const [provider] = await db
+      .insert(customProvider)
+      .values({
+        userId,
+        name,
+        baseUrl,
+        apiKey,
+        format,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+    return provider;
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to create custom provider"
+    );
+  }
+}
+
+export async function updateCustomProvider({
+  id,
+  ...updates
+}: {
+  id: string;
+  name?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  format?: "openai" | "anthropic";
+  isEnabled?: boolean;
+}) {
+  try {
+    const setValues: Record<string, unknown> = { updatedAt: new Date() };
+    if (updates.name !== undefined) {
+      setValues.name = updates.name;
+    }
+    if (updates.baseUrl !== undefined) {
+      setValues.baseUrl = updates.baseUrl;
+    }
+    if (updates.apiKey !== undefined) {
+      setValues.apiKey = updates.apiKey;
+    }
+    if (updates.format !== undefined) {
+      setValues.format = updates.format;
+    }
+    if (updates.isEnabled !== undefined) {
+      setValues.isEnabled = updates.isEnabled;
+    }
+
+    const [provider] = await db
+      .update(customProvider)
+      .set(setValues)
+      .where(eq(customProvider.id, id))
+      .returning();
+    return provider;
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to update custom provider"
+    );
+  }
+}
+
+export async function deleteCustomProvider({ id }: { id: string }) {
+  try {
+    await db.delete(customModel).where(eq(customModel.providerId, id));
+    await db.delete(customProvider).where(eq(customProvider.id, id));
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to delete custom provider"
+    );
+  }
+}
+
+// ─── Custom Models ───────────────────────────────────────
+
+export async function getCustomModels({ providerId }: { providerId: string }) {
+  try {
+    return await db
+      .select()
+      .from(customModel)
+      .where(eq(customModel.providerId, providerId))
+      .orderBy(asc(customModel.createdAt));
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to get custom models"
+    );
+  }
+}
+
+export async function getEnabledCustomModelsByUserId({
+  userId,
+}: {
+  userId: string;
+}) {
+  try {
+    return await db
+      .select({
+        model: customModel,
+        provider: customProvider,
+      })
+      .from(customModel)
+      .innerJoin(customProvider, eq(customModel.providerId, customProvider.id))
+      .where(
+        and(
+          eq(customProvider.userId, userId),
+          eq(customProvider.isEnabled, true),
+          eq(customModel.isEnabled, true)
+        )
+      );
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to get enabled custom models"
+    );
+  }
+}
+
+export async function createCustomModel({
+  providerId,
+  modelId,
+  displayName,
+}: {
+  providerId: string;
+  modelId: string;
+  displayName: string;
+}) {
+  try {
+    const [model] = await db
+      .insert(customModel)
+      .values({
+        providerId,
+        modelId,
+        displayName,
+        createdAt: new Date(),
+      })
+      .returning();
+    return model;
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to create custom model"
+    );
+  }
+}
+
+export async function deleteCustomModelByIdAndProvider({
+  id,
+  providerId,
+}: {
+  id: string;
+  providerId: string;
+}) {
+  try {
+    const [deleted] = await db
+      .delete(customModel)
+      .where(
+        and(eq(customModel.id, id), eq(customModel.providerId, providerId))
+      )
+      .returning();
+    return deleted ?? null;
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to delete custom model"
+    );
+  }
+}
+
+export async function updateCustomModelByIdAndProvider({
+  id,
+  providerId,
+  isEnabled,
+}: {
+  id: string;
+  providerId: string;
+  isEnabled: boolean;
+}) {
+  try {
+    const [model] = await db
+      .update(customModel)
+      .set({ isEnabled })
+      .where(
+        and(eq(customModel.id, id), eq(customModel.providerId, providerId))
+      )
+      .returning();
+    return model ?? null;
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to update custom model"
     );
   }
 }

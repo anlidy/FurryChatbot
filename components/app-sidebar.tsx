@@ -61,7 +61,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
   return (
     <>
       <Sidebar className="group-data-[side=left]:border-r-0">
-        <SidebarHeader>
+        <SidebarHeader className="px-3 pt-3 pb-1">
           <SidebarMenu>
             <div className="flex flex-row items-center justify-between">
               <Link
@@ -71,16 +71,16 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   setOpenMobile(false);
                 }}
               >
-                <span className="cursor-pointer rounded-md px-2 font-semibold text-lg hover:bg-muted">
+                <span className="cursor-pointer rounded-md px-2 py-1 font-semibold text-lg text-sidebar-foreground transition-colors hover:bg-sidebar-accent">
                   Chatbot
                 </span>
               </Link>
-              <div className="flex flex-row gap-1">
+              <div className="flex flex-row gap-0.5">
                 {user && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        className="h-8 p-1 md:h-fit md:p-2"
+                        className="size-8 rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                         onClick={() => setShowDeleteAllDialog(true)}
                         type="button"
                         variant="ghost"
@@ -96,7 +96,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      className="h-8 p-1 md:h-fit md:p-2"
+                      className="size-8 rounded-lg text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
                       onClick={() => {
                         setOpenMobile(false);
                         router.push("/");
@@ -116,10 +116,12 @@ export function AppSidebar({ user }: { user: User | undefined }) {
             </div>
           </SidebarMenu>
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="px-2">
           <SidebarHistory user={user} />
         </SidebarContent>
-        <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>
+        <SidebarFooter className="px-3 pb-3">
+          {user && <SidebarUserNav user={user} />}
+        </SidebarFooter>
       </Sidebar>
 
       <AlertDialog

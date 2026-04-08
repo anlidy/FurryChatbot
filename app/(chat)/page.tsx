@@ -2,8 +2,10 @@ import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { Chat } from "@/components/chat";
 import { DataStreamHandler } from "@/components/data-stream-handler";
-import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
+import { getCustomModelsForUser } from "@/lib/ai/custom-models";
+import { getUserProfile } from "@/lib/db/queries";
 import { generateUUID } from "@/lib/utils";
+import { auth } from "../(auth)/auth";
 
 export default function Page() {
   return (
@@ -18,29 +20,31 @@ async function NewChatPage() {
   const modelIdFromCookie = cookieStore.get("chat-model");
   const id = generateUUID();
 
-  if (!modelIdFromCookie) {
-    return (
-      <>
-        <Chat
-          autoResume={false}
-          id={id}
-          initialChatModel={DEFAULT_CHAT_MODEL}
-          initialMessages={[]}
-          initialVisibilityType="private"
-          isReadonly={false}
-          key={id}
-        />
-        <DataStreamHandler />
-      </>
-    );
+  let defaultModel = "";
+
+  const session = await auth();
+  if (session?.user) {
+    const profile = await getUserProfile({ userId: session.user.id });
+    if (profile?.preferences?.defaultModel) {
+      defaultModel = profile.preferences.defaultModel;
+    }
+
+    if (!defaultModel) {
+      const models = await getCustomModelsForUser(session.user.id);
+      if (models.length > 0) {
+        defaultModel = models[0].id;
+      }
+    }
   }
+
+  const chatModel = modelIdFromCookie?.value || defaultModel;
 
   return (
     <>
       <Chat
         autoResume={false}
         id={id}
-        initialChatModel={modelIdFromCookie.value}
+        initialChatModel={chatModel}
         initialMessages={[]}
         initialVisibilityType="private"
         isReadonly={false}
