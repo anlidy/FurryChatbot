@@ -1,7 +1,5 @@
 import type { Page } from "@playwright/test";
 
-const MODEL_BUTTON_REGEX = /Gemini|Claude|GPT|Grok/i;
-
 export class ChatPage {
   page: Page;
 
@@ -19,7 +17,7 @@ export class ChatPage {
   }
 
   getInput() {
-    return this.page.getByTestId("multimodal-input");
+    return this.page.getByTestId("multimodal-input").first();
   }
 
   async typeMessage(message: string) {
@@ -37,11 +35,15 @@ export class ChatPage {
   }
 
   getSendButton() {
-    return this.page.getByTestId("send-button");
+    return this.page.getByTestId("send-button").first();
   }
 
   getStopButton() {
-    return this.page.getByTestId("stop-button");
+    return this.page.getByTestId("stop-button").first();
+  }
+
+  getModelSelectorTrigger() {
+    return this.page.getByTestId("model-selector-trigger").first();
   }
 
   async clickSuggestedAction(index = 0) {
@@ -52,11 +54,7 @@ export class ChatPage {
   }
 
   async openModelSelector() {
-    const modelButton = this.page
-      .locator("button")
-      .filter({ hasText: MODEL_BUTTON_REGEX })
-      .first();
-    await modelButton.click();
+    await this.getModelSelectorTrigger().click();
   }
 
   async selectModel(modelName: string) {
