@@ -4,7 +4,7 @@ import {
   getCustomProviderById,
   updateCustomProvider,
 } from "@/lib/db/queries";
-import { encrypt, maskApiKey } from "@/lib/encryption";
+import { decrypt, encrypt, maskApiKey } from "@/lib/encryption";
 import { ChatbotError } from "@/lib/errors";
 import { updateProviderSchema } from "@/lib/settings-schemas";
 
@@ -50,7 +50,8 @@ export async function PATCH(
   const updated = await updateCustomProvider({ id, ...updates });
   return Response.json({
     ...updated,
-    apiKey: maskApiKey(updated.name),
+    apiKey: updated.apiKey,
+    apiKeyPreview: maskApiKey(decrypt(updated.apiKey)),
   });
 }
 

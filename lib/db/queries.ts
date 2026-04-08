@@ -868,9 +868,21 @@ export async function createCustomModel({
   }
 }
 
-export async function deleteCustomModel({ id }: { id: string }) {
+export async function deleteCustomModelByIdAndProvider({
+  id,
+  providerId,
+}: {
+  id: string;
+  providerId: string;
+}) {
   try {
-    await db.delete(customModel).where(eq(customModel.id, id));
+    const [deleted] = await db
+      .delete(customModel)
+      .where(
+        and(eq(customModel.id, id), eq(customModel.providerId, providerId))
+      )
+      .returning();
+    return deleted ?? null;
   } catch (_error) {
     throw new ChatbotError(
       "bad_request:database",
@@ -879,24 +891,28 @@ export async function deleteCustomModel({ id }: { id: string }) {
   }
 }
 
-export async function toggleCustomModel({
+export async function updateCustomModelByIdAndProvider({
   id,
+  providerId,
   isEnabled,
 }: {
   id: string;
+  providerId: string;
   isEnabled: boolean;
 }) {
   try {
     const [model] = await db
       .update(customModel)
       .set({ isEnabled })
-      .where(eq(customModel.id, id))
+      .where(
+        and(eq(customModel.id, id), eq(customModel.providerId, providerId))
+      )
       .returning();
-    return model;
+    return model ?? null;
   } catch (_error) {
     throw new ChatbotError(
       "bad_request:database",
-      "Failed to toggle custom model"
+      "Failed to update custom model"
     );
   }
 }

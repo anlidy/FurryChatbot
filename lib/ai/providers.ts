@@ -12,6 +12,7 @@ import {
   getUserProfile,
 } from "../db/queries";
 import { decrypt } from "../encryption";
+import { ChatbotError } from "../errors";
 
 const THINKING_SUFFIX_REGEX = /-thinking$/;
 
@@ -45,7 +46,7 @@ function createProviderInstance(
   return createOpenAI({ baseURL: baseUrl, apiKey });
 }
 
-export async function getLanguageModel(modelId: string) {
+export async function getLanguageModel(modelId: string, userId: string) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel(modelId);
   }
@@ -61,6 +62,12 @@ export async function getLanguageModel(modelId: string) {
   const provider = await getCustomProviderById({ id: providerId });
   if (!provider) {
     throw new Error(`Provider not found: ${providerId}`);
+  }
+  if (provider.userId !== userId) {
+    throw new ChatbotError(
+      "forbidden:chat",
+      "Provider does not belong to the current user"
+    );
   }
   if (!provider.isEnabled) {
     throw new Error(`Provider is disabled: ${provider.name}`);
@@ -94,7 +101,7 @@ async function getSystemModel(userId: string) {
   const systemModelId = profile?.preferences?.defaultModel;
 
   if (systemModelId) {
-    return getLanguageModel(systemModelId);
+    return getLanguageModel(systemModelId, userId);
   }
 
   const enabledModels = await getEnabledCustomModelsByUserId({ userId });
@@ -106,7 +113,7 @@ async function getSystemModel(userId: string) {
 
   const first = enabledModels[0];
   const fallbackId = `${first.provider.id}/${first.model.modelId}`;
-  return getLanguageModel(fallbackId);
+  return getLanguageModel(fallbackId, userId);
 }
 
 export async function getTitleModel(userId: string) {

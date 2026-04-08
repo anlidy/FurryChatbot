@@ -165,7 +165,10 @@ export async function POST(request: Request) {
     const stream = createUIMessageStream({
       originalMessages: isToolApprovalFlow ? uiMessages : undefined,
       execute: async ({ writer: dataStream }) => {
-        const model = await getLanguageModel(selectedChatModel);
+        const model = await getLanguageModel(
+          selectedChatModel,
+          session.user.id
+        );
 
         const result = streamText({
           model,
