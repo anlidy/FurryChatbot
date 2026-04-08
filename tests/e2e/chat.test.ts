@@ -33,7 +33,8 @@ test.describe("Chat Page", () => {
   });
 
   test("input supports multiline text", async ({ chatPage }) => {
-    await chatPage.typeMessage("Line 1\nLine 2\nLine 3");
-    await expect(chatPage.getInput()).toContainText("Line 1");
+    const multiline = "Line 1\nLine 2\nLine 3";
+    await chatPage.typeMessage(multiline);
+    await expect(chatPage.getInput()).toHaveValue(multiline);
   });
 });
