@@ -490,6 +490,7 @@ function PureModelSelectorCompact({
     return (
       <Button
         className="h-8 px-2 text-muted-foreground"
+        data-testid="model-selector-trigger"
         onClick={() => {
           window.location.href = "/settings/providers";
         }}
@@ -503,7 +504,11 @@ function PureModelSelectorCompact({
   return (
     <ModelSelector onOpenChange={setOpen} open={open}>
       <ModelSelectorTrigger asChild>
-        <Button className="h-8 w-[200px] justify-between px-2" variant="ghost">
+        <Button
+          className="h-8 w-[200px] justify-between px-2"
+          data-testid="model-selector-trigger"
+          variant="ghost"
+        >
           <ModelSelectorName>
             {selectedModel?.name ?? "Select model"}
           </ModelSelectorName>
