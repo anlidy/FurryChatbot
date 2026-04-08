@@ -97,6 +97,10 @@ export function sanitizeText(text: string) {
   return text.replace('<has_function_call>', '');
 }
 
+export function preserveNewlines(text: string) {
+  return text.replace(/\n/g, "  \n");
+}
+
 export function convertToUIMessages(messages: DBMessage[]): ChatMessage[] {
   return messages.map((message) => ({
     id: message.id,
