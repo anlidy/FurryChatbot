@@ -101,7 +101,23 @@ async function getSystemModel(userId: string) {
   const systemModelId = profile?.preferences?.defaultModel;
 
   if (systemModelId) {
-    return getLanguageModel(systemModelId, userId);
+    // Validate model ID format before calling getLanguageModel
+    if (typeof systemModelId === "string" && systemModelId.includes("/")) {
+      try {
+        return await getLanguageModel(systemModelId, userId);
+      } catch (error) {
+        console.error(
+          `Failed to get language model with ID "${systemModelId}":`,
+          error
+        );
+        // Fall through to use fallback model
+      }
+    } else {
+      console.error(
+        `Invalid defaultModel format: "${systemModelId}". Expected "<provider>/<model>".`
+      );
+      // Fall through to use fallback model
+    }
   }
 
   const enabledModels = await getEnabledCustomModelsByUserId({ userId });
