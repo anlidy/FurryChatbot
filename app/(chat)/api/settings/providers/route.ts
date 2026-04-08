@@ -4,7 +4,7 @@ import {
   getCustomModels,
   getCustomProviders,
 } from "@/lib/db/queries";
-import { encrypt, maskApiKey } from "@/lib/encryption";
+import { decrypt, encrypt, maskApiKey } from "@/lib/encryption";
 import { ChatbotError } from "@/lib/errors";
 import { createProviderSchema } from "@/lib/settings-schemas";
 
@@ -24,9 +24,11 @@ export async function GET() {
   const result = await Promise.all(
     providers.map(async (p) => {
       const models = await getCustomModels({ providerId: p.id });
+      const plainKey = decrypt(p.apiKey);
       return {
         ...p,
-        apiKey: maskApiKey(p.name),
+        apiKey: p.apiKey,
+        apiKeyPreview: maskApiKey(plainKey),
         modelCount: models.length,
         models,
       };
@@ -75,7 +77,11 @@ export async function POST(request: Request) {
   });
 
   return Response.json(
-    { ...provider, apiKey: maskApiKey(apiKey) },
+    {
+      ...provider,
+      apiKey: provider.apiKey,
+      apiKeyPreview: maskApiKey(apiKey),
+    },
     { status: 201 }
   );
 }

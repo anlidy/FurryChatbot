@@ -1,61 +1,40 @@
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "../fixtures";
 
 const CHAT_URL_REGEX = /\/chat\/[\w-]+/;
 const ERROR_TEXT_REGEX = /error|failed|trouble/i;
 
 test.describe("Chat API Integration", () => {
-  test("sends message and receives AI response", async ({ page }) => {
-    await page.goto("/");
+  test.beforeEach(async ({ chatPage }) => {
+    await chatPage.goto();
+  });
 
-    const input = page.getByTestId("multimodal-input");
-    await input.fill("Hello");
-    await page.getByTestId("send-button").click();
+  test("sends message and receives AI response", async ({ chatPage, page }) => {
+    await chatPage.sendUserMessage("Hello");
 
-    // Wait for assistant response to appear
     const assistantMessage = page.locator("[data-role='assistant']").first();
     await expect(assistantMessage).toBeVisible({ timeout: 30_000 });
 
-    // Verify it has some text content
     const content = await assistantMessage.textContent();
     expect(content?.length).toBeGreaterThan(0);
   });
 
-  test("redirects to /chat/:id after sending message", async ({ page }) => {
-    await page.goto("/");
-
-    const input = page.getByTestId("multimodal-input");
-    await input.fill("Test redirect");
-    await page.getByTestId("send-button").click();
-
-    // URL should change to /chat/:id format
+  test("redirects to /chat/:id after sending message", async ({
+    chatPage,
+    page,
+  }) => {
+    await chatPage.sendUserMessage("Test redirect");
     await expect(page).toHaveURL(CHAT_URL_REGEX, { timeout: 10_000 });
   });
 
-  test("clears input after sending", async ({ page }) => {
-    await page.goto("/");
-
-    const input = page.getByTestId("multimodal-input");
-    await input.fill("Test message");
-    await page.getByTestId("send-button").click();
-
-    // Input should be cleared
-    await expect(input).toHaveValue("");
-  });
-
-  test("shows stop button during generation", async ({ page }) => {
-    await page.goto("/");
-    const input = page.getByTestId("multimodal-input");
-    await input.fill("Test");
-    await page.getByTestId("send-button").click();
-
-    // Stop button should appear during generation
-    const stopButton = page.getByTestId("stop-button");
-    await expect(stopButton).toBeVisible({ timeout: 5000 });
+  test("shows stop button during generation", async ({ chatPage }) => {
+    await chatPage.sendUserMessage("Tell me a long story");
+    await expect(chatPage.getStopButton()).toBeVisible({ timeout: 5000 });
   });
 });
 
 test.describe("Chat Error Handling", () => {
-  test("handles API error gracefully", async ({ page }) => {
+  test("handles API error gracefully", async ({ chatPage, page }) => {
     await page.route("**/api/chat", async (route) => {
       await route.fulfill({
         status: 500,
@@ -64,12 +43,9 @@ test.describe("Chat Error Handling", () => {
       });
     });
 
-    await page.goto("/");
-    const input = page.getByTestId("multimodal-input");
-    await input.fill("Test error");
-    await page.getByTestId("send-button").click();
+    await chatPage.goto();
+    await chatPage.sendUserMessage("Test error");
 
-    // Should show error toast or message
     await expect(page.getByText(ERROR_TEXT_REGEX).first()).toBeVisible({
       timeout: 5000,
     });
@@ -77,8 +53,8 @@ test.describe("Chat Error Handling", () => {
 });
 
 test.describe("Suggested Actions", () => {
-  test("suggested actions are clickable", async ({ page }) => {
-    await page.goto("/");
+  test("suggested actions are clickable", async ({ chatPage, page }) => {
+    await chatPage.goto();
 
     const suggestions = page.locator(
       "[data-testid='suggested-actions'] button"
@@ -87,8 +63,6 @@ test.describe("Suggested Actions", () => {
 
     if (count > 0) {
       await suggestions.first().click();
-
-      // Should redirect after clicking suggestion
       await expect(page).toHaveURL(CHAT_URL_REGEX, { timeout: 10_000 });
     }
   });

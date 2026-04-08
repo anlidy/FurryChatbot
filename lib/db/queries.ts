@@ -948,14 +948,21 @@ export async function createCustomModel({
   }
 }
 
-/**
- * Deletes the custom model with the specified id from the database.
- *
- * @param id - The id of the custom model to delete
- */
-export async function deleteCustomModel({ id }: { id: string }) {
+export async function deleteCustomModelByIdAndProvider({
+  id,
+  providerId,
+}: {
+  id: string;
+  providerId: string;
+}) {
   try {
-    await db.delete(customModel).where(eq(customModel.id, id));
+    const [deleted] = await db
+      .delete(customModel)
+      .where(
+        and(eq(customModel.id, id), eq(customModel.providerId, providerId))
+      )
+      .returning();
+    return deleted ?? null;
   } catch (_error) {
     throw new ChatbotError(
       "bad_request:database",
@@ -964,31 +971,28 @@ export async function deleteCustomModel({ id }: { id: string }) {
   }
 }
 
-/**
- * Set the enabled state of a custom model.
- *
- * @param id - The custom model's identifier
- * @param isEnabled - Whether the model should be enabled (`true`) or disabled (`false`)
- * @returns The updated custom model row, or `undefined` if no model with the given id exists
- */
-export async function toggleCustomModel({
+export async function updateCustomModelByIdAndProvider({
   id,
+  providerId,
   isEnabled,
 }: {
   id: string;
+  providerId: string;
   isEnabled: boolean;
 }) {
   try {
     const [model] = await db
       .update(customModel)
       .set({ isEnabled })
-      .where(eq(customModel.id, id))
+      .where(
+        and(eq(customModel.id, id), eq(customModel.providerId, providerId))
+      )
       .returning();
-    return model;
+    return model ?? null;
   } catch (_error) {
     throw new ChatbotError(
       "bad_request:database",
-      "Failed to toggle custom model"
+      "Failed to update custom model"
     );
   }
 }

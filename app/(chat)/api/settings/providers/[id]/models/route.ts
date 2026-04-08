@@ -1,10 +1,10 @@
 import { auth } from "@/app/(auth)/auth";
 import {
   createCustomModel,
-  deleteCustomModel,
+  deleteCustomModelByIdAndProvider,
   getCustomModels,
   getCustomProviderById,
-  toggleCustomModel,
+  updateCustomModelByIdAndProvider,
 } from "@/lib/db/queries";
 import { ChatbotError } from "@/lib/errors";
 import { createModelSchema, toggleModelSchema } from "@/lib/settings-schemas";
@@ -111,7 +111,13 @@ export async function DELETE(
     return Response.json({ error: "modelId required" }, { status: 400 });
   }
 
-  await deleteCustomModel({ id: modelId });
+  const deleted = await deleteCustomModelByIdAndProvider({
+    id: modelId,
+    providerId: id,
+  });
+  if (!deleted) {
+    return new ChatbotError("not_found:database").toResponse();
+  }
   return Response.json({ success: true });
 }
 
@@ -157,6 +163,13 @@ export async function PATCH(
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const model = await toggleCustomModel({ id: modelId, ...parsed.data });
+  const model = await updateCustomModelByIdAndProvider({
+    id: modelId,
+    providerId: id,
+    ...parsed.data,
+  });
+  if (!model) {
+    return new ChatbotError("not_found:database").toResponse();
+  }
   return Response.json(model);
 }

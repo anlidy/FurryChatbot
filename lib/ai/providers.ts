@@ -12,6 +12,7 @@ import {
   getUserProfile,
 } from "../db/queries";
 import { decrypt } from "../encryption";
+import { ChatbotError } from "../errors";
 
 const THINKING_SUFFIX_REGEX = /-thinking$/;
 
@@ -53,16 +54,7 @@ function createProviderInstance(
   return createOpenAI({ baseURL: baseUrl, apiKey });
 }
 
-/**
- * Resolve a language model instance from a provider-scoped model identifier.
- *
- * @param modelId - Provider-scoped identifier in the form `providerId/modelId` (e.g. `acme/my-model`).
- * @returns A language model instance for the specified provider and model. If the model name indicates a reasoning variant (e.g., ends with `-thinking` or contains `reasoning`), the returned instance is wrapped with reasoning middleware.
- * @throws Error if `modelId` is not in the expected `providerId/modelId` format.
- * @throws Error if the referenced provider does not exist.
- * @throws Error if the referenced provider is disabled.
- */
-export async function getLanguageModel(modelId: string) {
+export async function getLanguageModel(modelId: string, userId: string) {
   if (isTestEnvironment && myProvider) {
     return myProvider.languageModel(modelId);
   }
@@ -78,6 +70,12 @@ export async function getLanguageModel(modelId: string) {
   const provider = await getCustomProviderById({ id: providerId });
   if (!provider) {
     throw new Error(`Provider not found: ${providerId}`);
+  }
+  if (provider.userId !== userId) {
+    throw new ChatbotError(
+      "forbidden:chat",
+      "Provider does not belong to the current user"
+    );
   }
   if (!provider.isEnabled) {
     throw new Error(`Provider is disabled: ${provider.name}`);
@@ -118,7 +116,23 @@ async function getSystemModel(userId: string) {
   const systemModelId = profile?.preferences?.defaultModel;
 
   if (systemModelId) {
-    return getLanguageModel(systemModelId);
+    // Validate model ID format before calling getLanguageModel
+    if (typeof systemModelId === "string" && systemModelId.includes("/")) {
+      try {
+        return await getLanguageModel(systemModelId, userId);
+      } catch (error) {
+        console.error(
+          `Failed to get language model with ID "${systemModelId}":`,
+          error
+        );
+        // Fall through to use fallback model
+      }
+    } else {
+      console.error(
+        `Invalid defaultModel format: "${systemModelId}". Expected "<provider>/<model>".`
+      );
+      // Fall through to use fallback model
+    }
   }
 
   const enabledModels = await getEnabledCustomModelsByUserId({ userId });
@@ -130,7 +144,7 @@ async function getSystemModel(userId: string) {
 
   const first = enabledModels[0];
   const fallbackId = `${first.provider.id}/${first.model.modelId}`;
-  return getLanguageModel(fallbackId);
+  return getLanguageModel(fallbackId, userId);
 }
 
 /**
