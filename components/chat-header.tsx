@@ -9,6 +9,14 @@ import { PlusIcon } from "./icons";
 import { useSidebar } from "./ui/sidebar";
 import { VisibilitySelector, type VisibilityType } from "./visibility-selector";
 
+/**
+ * Renders the sticky chat header containing a sidebar toggle, a conditional "New Chat" button, and, when editable, a visibility selector.
+ *
+ * @param chatId - Chat identifier passed to the visibility selector.
+ * @param selectedVisibilityType - Currently selected visibility type shown by the visibility selector.
+ * @param isReadonly - When true, hides the visibility selector and renders the header in read-only mode.
+ * @returns The header JSX element with controls for chat navigation and visibility.
+ */
 function PureChatHeader({
   chatId,
   selectedVisibilityType,

@@ -97,6 +97,12 @@ export function getChatHistoryPaginationKey(
   return `/api/history?ending_before=${firstChatFromPage.id}&limit=${PAGE_SIZE}`;
 }
 
+/**
+ * Renders the user's chat history sidebar grouped by date with infinite loading and chat deletion.
+ *
+ * @param user - The currently authenticated user; when `undefined`, a login prompt is shown instead of history.
+ * @returns The sidebar UI containing grouped chat items, pagination controls (load more / end message), and a delete confirmation dialog.
+ */
 export function SidebarHistory({ user }: { user: User | undefined }) {
   const { setOpenMobile } = useSidebar();
   const pathname = usePathname();

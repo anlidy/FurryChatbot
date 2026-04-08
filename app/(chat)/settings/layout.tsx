@@ -10,6 +10,14 @@ const tabs = [
   { label: "Providers", href: "/settings/providers" },
 ];
 
+/**
+ * Layout component that renders the Settings page with a left navigation rail and main content area.
+ *
+ * Renders a header with a "Settings" title and a close button that navigates to the root path ("/"). The left navigation lists the available settings tabs and highlights the active tab based on the current pathname. The provided `children` are rendered in the scrollable main content area.
+ *
+ * @param children - The content to display for the active settings view
+ * @returns The Settings layout element containing header, navigation, and main content
+ */
 export default function SettingsLayout({
   children,
 }: {

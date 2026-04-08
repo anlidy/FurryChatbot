@@ -6,6 +6,13 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 
+/**
+ * Retrieve and validate the AES-256 encryption key from the `ENCRYPTION_KEY` environment variable.
+ *
+ * @returns The decoded 32-byte encryption key as a `Buffer`.
+ * @throws Error if `ENCRYPTION_KEY` is not set ("ENCRYPTION_KEY environment variable is not set").
+ * @throws Error if the decoded key is not exactly 32 bytes ("ENCRYPTION_KEY must be 32 bytes (base64-encoded)").
+ */
 function getKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY;
   if (!key) {
@@ -18,6 +25,12 @@ function getKey(): Buffer {
   return buf;
 }
 
+/**
+ * Encrypts a UTF-8 string using AES-256-GCM and returns a combined hex payload.
+ *
+ * @param plaintext - The UTF-8 text to encrypt
+ * @returns A colon-delimited hex string in the format `ivHex:authTagHex:ciphertextHex`
+ */
 export function encrypt(plaintext: string): string {
   const key = getKey();
   const iv = randomBytes(IV_LENGTH);
@@ -34,6 +47,13 @@ export function encrypt(plaintext: string): string {
   return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
 }
 
+/**
+ * Decrypts a colon-delimited AES-256-GCM payload and returns the plaintext.
+ *
+ * @param stored - A string in the format `ivHex:authTagHex:ciphertextHex`, where each component is hex-encoded
+ * @returns The decrypted UTF-8 plaintext
+ * @throws Error If `stored` does not contain an IV, authentication tag, and ciphertext (message: "Invalid encrypted value format")
+ */
 export function decrypt(stored: string): string {
   const key = getKey();
   const [ivHex, authTagHex, ciphertextHex] = stored.split(":");
@@ -57,6 +77,12 @@ export function decrypt(stored: string): string {
   ]).toString("utf8");
 }
 
+/**
+ * Produce a shortened, obfuscated representation of an API key.
+ *
+ * @param key - The API key to mask
+ * @returns `key` unchanged if its length is 4 or fewer, otherwise a masked string consisting of the first 3 characters, `...`, and the last 4 characters
+ */
 export function maskApiKey(key: string): string {
   if (key.length <= 4) {
     return key;

@@ -20,6 +20,24 @@ type MessagesProps = {
   selectedModelId: string;
 };
 
+/**
+ * Render the scrollable message list UI for a chat conversation.
+ *
+ * Renders a centered column of messages (or a greeting if empty), maps each message to a `PreviewMessage`,
+ * shows a `ThinkingMessage` when a submission is pending without an approval response, and provides a
+ * floating "Scroll to bottom" control that is hidden when the view is already at the bottom.
+ *
+ * @param addToolApprovalResponse - Callback used to attach tool approval responses to messages
+ * @param chatId - Identifier of the current chat
+ * @param status - Current streaming/submission status of the chat
+ * @param votes - Optional list of vote objects used to annotate messages
+ * @param messages - Array of messages to render
+ * @param setMessages - State setter for updating the messages array
+ * @param regenerate - Callback to request message regeneration
+ * @param isReadonly - When true, disables interactive message actions
+ * @param _selectedModelId - Selected model id (accepted but not used by this component)
+ * @returns The JSX element containing the messages list and scroll controls
+ */
 function PureMessages({
   addToolApprovalResponse,
   chatId,

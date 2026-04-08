@@ -6,6 +6,13 @@ import { ChatbotError } from "@/lib/errors";
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+/**
+ * Handles authenticated avatar uploads: validates and stores an image, then updates the user's profile.
+ *
+ * Performs authentication and returns an unauthorized ChatbotError response when there is no authenticated user. Validates that a `file` field is present, that its MIME type is one of `image/jpeg`, `image/png`, or `image/webp`, and that its size is under 2MB; validation failures return a 400 JSON error. On success, uploads the file to `avatars/{userId}`, updates the user's `avatarUrl`, and returns the uploaded URL.
+ *
+ * @returns A JSON Response with `{ url: string }` on success; a 400 JSON error object for validation failures; or a ChatbotError response when unauthenticated.
+ */
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {

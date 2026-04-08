@@ -20,6 +20,13 @@ type ProfileData = {
   } | null;
 };
 
+/**
+ * Renders the General Settings page for viewing and editing the user's profile and preferences.
+ *
+ * Displays the user's avatar and display name, lets the user upload a new avatar, update their display name, and change preferences (theme and default model). Data is loaded from settings endpoints and updates are persisted via API calls with optimistic UI refreshes.
+ *
+ * @returns The settings page React element containing profile controls (avatar, display name, save) and preference selectors (theme and default model).
+ */
 export default function GeneralSettingsPage() {
   const { data: profile, mutate } = useSWR<ProfileData>(
     "/api/settings/profile",

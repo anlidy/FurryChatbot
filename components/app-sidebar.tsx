@@ -34,6 +34,16 @@ import {
 } from "./ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
+/**
+ * Render the application sidebar containing navigation, chat history, and user controls.
+ *
+ * The sidebar includes header actions for creating a new chat and (when a user is present)
+ * deleting all chats via a confirmation dialog, a scrollable history section, and an
+ * optional user navigation footer.
+ *
+ * @param user - The currently authenticated user; when provided, user-specific controls (like delete-all) are shown
+ * @returns The sidebar React element tree
+ */
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
   const { setOpenMobile } = useSidebar();

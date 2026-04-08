@@ -27,6 +27,13 @@ type Provider = {
   models: Model[];
 };
 
+/**
+ * Render the Providers settings page for listing, creating, editing, and deleting custom AI providers and their models.
+ *
+ * The component displays an empty state when no providers exist, a selectable list of providers otherwise, and inline forms for creating or editing a provider. After create, save, or delete actions the provider list is refreshed.
+ *
+ * @returns The rendered Providers settings page component
+ */
 export default function ProvidersPage() {
   const { data: providers, mutate } = useSWR<Provider[]>(
     "/api/settings/providers",
