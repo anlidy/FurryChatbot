@@ -215,7 +215,7 @@ export function ProviderForm({
             Format
           </label>
           <select
-            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none"
+            className="w-full cursor-pointer rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none"
             id="format"
             onChange={(e) =>
               setFormat(e.target.value as "openai" | "anthropic")

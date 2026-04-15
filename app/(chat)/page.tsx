@@ -46,7 +46,6 @@ async function NewChatPage() {
         id={id}
         initialChatModel={chatModel}
         initialMessages={[]}
-        initialVisibilityType="private"
         isReadonly={false}
         key={id}
       />

@@ -13,7 +13,7 @@
 
 /* Claude.ai-inspired warm design tokens (light mode) */
 :root {
-  --background: hsl(30 20% 98%);
+  --background: hsl(60, 12%, 97%);
   --foreground: hsl(25 10% 12%);
   --card: hsl(30 15% 97%);
   --card-foreground: hsl(25 10% 12%);

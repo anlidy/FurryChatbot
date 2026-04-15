@@ -2,6 +2,7 @@
 
 import { isToday, isYesterday, subMonths, subWeeks } from "date-fns";
 import { motion } from "framer-motion";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import type { User } from "next-auth";
 import { useState } from "react";
@@ -115,6 +116,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
   const router = useRouter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isRecentsCollapsed, setIsRecentsCollapsed] = useState(false);
 
   const hasReachedEnd = paginatedChatHistories
     ? paginatedChatHistories.some((page) => page.hasMore === false)
@@ -269,21 +271,33 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
 
                     {groupedChats.lastWeek.length > 0 && (
                       <div>
-                        <div className="px-2 py-1 text-sidebar-foreground/50 text-xs">
-                          Last 7 days
-                        </div>
-                        {groupedChats.lastWeek.map((chat) => (
-                          <ChatItem
-                            chat={chat}
-                            isActive={chat.id === id}
-                            key={chat.id}
-                            onDelete={(chatId) => {
-                              setDeleteId(chatId);
-                              setShowDeleteDialog(true);
-                            }}
-                            setOpenMobile={setOpenMobile}
-                          />
-                        ))}
+                        <button
+                          className="flex w-full items-center gap-1 px-2 py-1 text-sidebar-foreground/50 text-xs hover:text-sidebar-foreground/70 transition-colors"
+                          onClick={() =>
+                            setIsRecentsCollapsed(!isRecentsCollapsed)
+                          }
+                          type="button"
+                        >
+                          {isRecentsCollapsed ? (
+                            <ChevronRight className="size-3" />
+                          ) : (
+                            <ChevronDown className="size-3" />
+                          )}
+                          Recents
+                        </button>
+                        {!isRecentsCollapsed &&
+                          groupedChats.lastWeek.map((chat) => (
+                            <ChatItem
+                              chat={chat}
+                              isActive={chat.id === id}
+                              key={chat.id}
+                              onDelete={(chatId) => {
+                                setDeleteId(chatId);
+                                setShowDeleteDialog(true);
+                              }}
+                              setOpenMobile={setOpenMobile}
+                            />
+                          ))}
                       </div>
                     )}
 
@@ -339,11 +353,7 @@ export function SidebarHistory({ user }: { user: User | undefined }) {
             }}
           />
 
-          {hasReachedEnd ? (
-            <div className="mt-8 flex w-full flex-row items-center justify-center gap-2 px-2 text-sm text-sidebar-foreground/50">
-              You have reached the end of your chat history.
-            </div>
-          ) : (
+          {!hasReachedEnd && (
             <div className="mt-8 flex flex-row items-center gap-2 p-2 text-sidebar-foreground/50">
               <div className="animate-spin">
                 <LoaderIcon />

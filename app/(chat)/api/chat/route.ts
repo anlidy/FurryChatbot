@@ -62,8 +62,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { id, message, messages, selectedChatModel, selectedVisibilityType } =
-      requestBody;
+    const { id, message, messages, selectedChatModel } = requestBody;
 
     const [botResult, session] = await Promise.all([checkBotId(), auth()]);
 
@@ -119,7 +118,7 @@ export async function POST(request: Request) {
         id,
         userId: session.user.id,
         title: "New chat",
-        visibility: selectedVisibilityType,
+        visibility: "private",
       });
       titlePromise = generateTitleFromUserMessage({
         message,
@@ -311,4 +310,37 @@ export async function DELETE(request: Request) {
   const deletedChat = await deleteChatById({ id });
 
   return Response.json(deletedChat, { status: 200 });
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { id, title } = await request.json();
+
+    if (!id || !title) {
+      return new ChatbotError("bad_request:api").toResponse();
+    }
+
+    const session = await auth();
+
+    if (!session?.user) {
+      return new ChatbotError("unauthorized:chat").toResponse();
+    }
+
+    const chat = await getChatById({ id });
+
+    if (!chat) {
+      return new ChatbotError("bad_request:api").toResponse();
+    }
+
+    if (chat.userId !== session.user.id) {
+      return new ChatbotError("forbidden:chat").toResponse();
+    }
+
+    await updateChatTitleById({ chatId: id, title });
+
+    return Response.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error("Error updating chat title:", error);
+    return new ChatbotError("offline:chat").toResponse();
+  }
 }

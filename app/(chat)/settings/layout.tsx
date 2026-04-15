@@ -23,7 +23,7 @@ export default function SettingsLayout({
       <header className="flex items-center justify-between px-6 py-5">
         <h1 className="font-semibold text-xl">Settings</h1>
         <button
-          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           onClick={() => router.push("/")}
           type="button"
         >

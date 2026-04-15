@@ -77,7 +77,6 @@ async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
         id={chat.id}
         initialChatModel={chatModel}
         initialMessages={uiMessages}
-        initialVisibilityType={chat.visibility}
         isReadonly={session?.user?.id !== chat.userId}
       />
       <DataStreamHandler />

@@ -16,7 +16,6 @@ import {
   ToolInput,
   ToolOutput,
 } from "./elements/tool";
-import { SparklesIcon } from "./icons";
 import { MessageActions } from "./message-actions";
 import { MessageEditor } from "./message-editor";
 import { MessageReasoning } from "./message-reasoning";
@@ -64,12 +63,6 @@ const PurePreviewMessage = ({
           "justify-start": message.role === "assistant",
         })}
       >
-        {message.role === "assistant" && (
-          <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
-            <SparklesIcon size={14} />
-          </div>
-        )}
-
         <div
           className={cn("flex flex-col", {
             "gap-2 md:gap-4": message.parts?.some(
@@ -129,7 +122,7 @@ const PurePreviewMessage = ({
                   <div key={key}>
                     <MessageContent
                       className={cn({
-                        "wrap-break-word w-fit rounded-2xl px-3 py-2 text-right text-white":
+                        "wrap-break-word w-fit rounded-lg px-3 py-2 text-right text-foreground":
                           message.role === "user",
                         "bg-transparent px-0 py-0 text-left":
                           message.role === "assistant",
@@ -137,7 +130,7 @@ const PurePreviewMessage = ({
                       data-testid="message-content"
                       style={
                         message.role === "user"
-                          ? { backgroundColor: "#006cff" }
+                          ? { backgroundColor: "#EFEEEB" }
                           : undefined
                       }
                     >
@@ -376,12 +369,6 @@ export const ThinkingMessage = () => {
       data-testid="message-assistant-loading"
     >
       <div className="flex items-start justify-start gap-3">
-        <div className="-mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-background ring-1 ring-border">
-          <div className="animate-pulse">
-            <SparklesIcon size={14} />
-          </div>
-        </div>
-
         <div className="flex w-full flex-col gap-2 md:gap-4">
           <div className="flex items-center gap-1 p-0 text-muted-foreground text-sm">
             <span className="animate-pulse">Thinking</span>

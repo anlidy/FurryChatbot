@@ -187,7 +187,7 @@ export default function GeneralSettingsPage() {
               </p>
             </div>
             <select
-              className="rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm outline-none"
+              className="cursor-pointer rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm outline-none"
               onChange={(e) => handlePreferenceChange("theme", e.target.value)}
               value={effectiveTheme}
             >
@@ -205,7 +205,7 @@ export default function GeneralSettingsPage() {
               </p>
             </div>
             <select
-              className="rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm outline-none"
+              className="cursor-pointer rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm outline-none"
               onChange={(e) =>
                 handlePreferenceChange("defaultModel", e.target.value)
               }
