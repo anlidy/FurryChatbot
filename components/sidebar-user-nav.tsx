@@ -42,33 +42,37 @@ export function SidebarUserNav({ user }: { user: User }) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             {status === "loading" ? (
-              <SidebarMenuButton className="h-10 justify-between bg-background data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-                <div className="flex flex-row gap-2">
-                  <div className="size-6 animate-pulse rounded-full bg-muted-foreground/20" />
+              <SidebarMenuButton className="h-12 w-full justify-between data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
+                <div className="flex flex-row gap-2 group-data-[collapsible=icon]:hidden">
+                  <div className="size-8 animate-pulse rounded-full bg-muted-foreground/20" />
                   <span className="animate-pulse rounded-md bg-muted-foreground/20 text-transparent">
                     Loading auth status
                   </span>
                 </div>
-                <div className="animate-spin text-muted-foreground">
+                <div className="animate-spin text-muted-foreground group-data-[collapsible=icon]:hidden">
                   <LoaderIcon />
                 </div>
+                <div className="hidden size-8 animate-pulse rounded-full bg-muted-foreground/20 group-data-[collapsible=icon]:block" />
               </SidebarMenuButton>
             ) : (
               <SidebarMenuButton
-                className="h-10 bg-background data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                className="h-12 w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
                 data-testid="user-nav-button"
               >
                 <Image
                   alt={user.email ?? "User Avatar"}
-                  className="rounded-full"
-                  height={24}
+                  className="size-8 shrink-0 rounded-full"
+                  height={32}
                   src={avatarSrc}
-                  width={24}
+                  width={32}
                 />
-                <span className="truncate" data-testid="user-email">
+                <span
+                  className="truncate group-data-[collapsible=icon]:hidden"
+                  data-testid="user-email"
+                >
                   {displayLabel}
                 </span>
-                <ChevronUp className="ml-auto" />
+                <ChevronUp className="ml-auto group-data-[collapsible=icon]:hidden" />
               </SidebarMenuButton>
             )}
           </DropdownMenuTrigger>
