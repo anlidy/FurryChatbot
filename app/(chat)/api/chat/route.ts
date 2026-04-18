@@ -12,11 +12,19 @@ import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 import { auth, type UserType } from "@/app/(auth)/auth";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
-import { type RequestHints, systemPrompt } from "@/lib/ai/prompts";
+import {
+  type RequestHints,
+  ragContextPrompt,
+  systemPrompt,
+} from "@/lib/ai/prompts";
 import { getLanguageModel } from "@/lib/ai/providers";
 import { createDocument } from "@/lib/ai/tools/create-document";
 import { getWeather } from "@/lib/ai/tools/get-weather";
 import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
+import {
+  hasReadyDocuments,
+  retrieveDocuments,
+} from "@/lib/ai/tools/retrieve-documents";
 import { updateDocument } from "@/lib/ai/tools/update-document";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
@@ -28,11 +36,13 @@ import {
   getMessagesByChatId,
   saveChat,
   saveMessages,
+  similaritySearch,
   updateChatTitleById,
   updateMessage,
 } from "@/lib/db/queries";
 import type { DBMessage } from "@/lib/db/schema";
 import { ChatbotError } from "@/lib/errors";
+import { embedText } from "@/lib/rag/embed";
 import { checkIpRateLimit } from "@/lib/ratelimit";
 import type { ChatMessage } from "@/lib/types";
 import { convertToUIMessages, generateUUID } from "@/lib/utils";
@@ -50,6 +60,23 @@ function getStreamContext() {
 }
 
 export { getStreamContext };
+
+/**
+ * 检测查询是否过于模糊，不适合做主动检索
+ */
+function isVagueQuery(query: string): boolean {
+  const vaguePatterns = [
+    /^(这个?|那个?|该)(文档|文件|资料|内容)/,  // "这个文档"、"这文档"
+    /^(总结|概括|介绍|说明)(一?下)?$/,        // "总结"、"概括一下"
+    /^(讲|说)(什么|啥)$/,                     // "讲什么"
+    /^(什么|啥)(内容|东西)$/,                 // "什么内容"
+    /^(帮我?|请)(看|读|分析)(一?下)?$/,       // "帮我看一下"
+    /^文档(内容|是什么|讲什么)/,              // "文档内容"
+  ];
+  
+  const trimmed = query.trim();
+  return vaguePatterns.some(pattern => pattern.test(trimmed));
+}
 
 export async function POST(request: Request) {
   let requestBody: PostRequestBody;
@@ -159,7 +186,21 @@ export async function POST(request: Request) {
       (selectedChatModel.includes("reasoning") &&
         !selectedChatModel.includes("non-reasoning"));
 
-    const modelMessages = await convertToModelMessages(uiMessages);
+    const IMAGE_TYPES = ["image/jpeg", "image/png"];
+    const filteredUIMessages: ChatMessage[] = uiMessages.map((msg) => {
+      if (msg.role !== "user") {
+        return msg;
+      }
+      const parts = msg.parts.filter((p) => {
+        // Only keep image files; drop other file parts.
+        if (p.type !== "file") {
+          return true;
+        }
+        return IMAGE_TYPES.includes(p.mediaType ?? "");
+      });
+      return { ...msg, parts };
+    });
+    const modelMessages = await convertToModelMessages(filteredUIMessages);
 
     const stream = createUIMessageStream({
       originalMessages: isToolApprovalFlow ? uiMessages : undefined,
@@ -169,19 +210,71 @@ export async function POST(request: Request) {
           session.user.id
         );
 
+        const hasRagDocs = await hasReadyDocuments(id);
+
+        let proactiveContext = "";
+        if (hasRagDocs) {
+          const lastUserMsg = [...modelMessages]
+            .reverse()
+            .find((m) => m.role === "user");
+          const content = lastUserMsg?.content;
+          const queryText = Array.isArray(content)
+            ? content
+                .filter(
+                  (p): p is { type: "text"; text: string } => p.type === "text"
+                )
+                .map((p) => p.text)
+                .join(" ")
+            : (content ?? "");
+          console.log("[RAG Debug] hasRagDocs:", hasRagDocs);
+          console.log("[RAG Debug] queryText:", queryText);
+          
+          // 检查查询是否足够具体
+          const isSpecificQuery = queryText.length > 10 && 
+            !isVagueQuery(queryText);
+          
+          if (queryText && isSpecificQuery) {
+            const embedding = await embedText(queryText);
+            const chunks = await similaritySearch({ chatId: id, embedding });
+            console.log("[RAG Debug] chunks found:", chunks.length);
+            if (chunks.length > 0) {
+              proactiveContext = ragContextPrompt(chunks);
+              console.log("[RAG Debug] proactiveContext length:", proactiveContext.length);
+            }
+          } else if (queryText) {
+            console.log("[RAG Debug] Query too vague, skipping proactive retrieval. Model will use retrieveDocuments tool if needed.");
+          }
+        }
+
+        const activeTools = isReasoningModel
+          ? [
+              // 思考模型也需要 RAG 工具来访问文档
+              ...(hasRagDocs ? ["retrieveDocuments"] : []),
+            ]
+          : [
+              "getWeather",
+              "createDocument",
+              "updateDocument",
+              "requestSuggestions",
+              ...(hasRagDocs ? ["retrieveDocuments"] : []),
+            ];
+
         const result = streamText({
           model,
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: (() => {
+            const prompt = systemPrompt({
+              selectedChatModel,
+              requestHints,
+              hasRagDocs,
+              proactiveContext,
+            });
+            console.log("[RAG Debug] System prompt length:", prompt.length);
+            console.log("[RAG Debug] System prompt includes proactiveContext:", prompt.includes("Document Excerpt"));
+            return prompt;
+          })(),
           messages: modelMessages,
           stopWhen: stepCountIs(5),
-          experimental_activeTools: isReasoningModel
-            ? []
-            : [
-                "getWeather",
-                "createDocument",
-                "updateDocument",
-                "requestSuggestions",
-              ],
+          experimental_activeTools: activeTools as never[],
           providerOptions: isReasoningModel
             ? {
                 anthropic: {
@@ -194,6 +287,7 @@ export async function POST(request: Request) {
             createDocument: createDocument({ session, dataStream }),
             updateDocument: updateDocument({ session, dataStream }),
             requestSuggestions: requestSuggestions({ session, dataStream }),
+            retrieveDocuments: retrieveDocuments({ chatId: id }),
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

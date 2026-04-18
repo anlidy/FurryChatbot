@@ -11,6 +11,7 @@ import {
   inArray,
   lt,
   type SQL,
+  sql,
 } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -24,6 +25,8 @@ import {
   customProvider,
   type DBMessage,
   document,
+  documentChunk,
+  documentResource,
   message,
   type Suggestion,
   stream,
@@ -40,7 +43,12 @@ import { generateHashedPassword } from "./utils";
 // https://authjs.dev/reference/adapter/drizzle
 
 // biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
+const client = postgres(process.env.POSTGRES_URL!, {
+  ssl: "require",
+  connect_timeout: 30,
+  idle_timeout: 20,
+  max_lifetime: 60 * 10,
+});
 const db = drizzle(client);
 type ChatVisibility = "public" | "private";
 
@@ -224,11 +232,8 @@ export async function getChatsByUserId({
       chats: hasMore ? filteredChats.slice(0, limit) : filteredChats,
       hasMore,
     };
-  } catch (_error) {
-    throw new ChatbotError(
-      "bad_request:database",
-      "Failed to get chats by user id"
-    );
+  } catch (error) {
+    throw new ChatbotError("bad_request:database", error);
   }
 }
 
@@ -613,11 +618,8 @@ export async function getUserProfile({ userId }: { userId: string }) {
       .from(userProfile)
       .where(eq(userProfile.id, userId));
     return profile ?? null;
-  } catch (_error) {
-    throw new ChatbotError(
-      "bad_request:database",
-      "Failed to get user profile"
-    );
+  } catch (error) {
+    throw new ChatbotError("bad_request:database", error);
   }
 }
 
@@ -913,6 +915,135 @@ export async function updateCustomModelByIdAndProvider({
     throw new ChatbotError(
       "bad_request:database",
       "Failed to update custom model"
+    );
+  }
+}
+
+// ─── Document Resources (RAG) ────────────────────────────
+
+export async function insertDocumentResource({
+  chatId,
+  fileName,
+  fileUrl,
+  fileType,
+}: {
+  chatId: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+}) {
+  try {
+    const [resource] = await db
+      .insert(documentResource)
+      .values({ chatId, fileName, fileUrl, fileType })
+      .returning();
+    return resource;
+  } catch (error) {
+    throw new ChatbotError("bad_request:database", error);
+  }
+}
+
+export async function updateDocumentResourceStatus({
+  id,
+  status,
+}: {
+  id: string;
+  status: "pending" | "ready" | "error";
+}) {
+  try {
+    await db
+      .update(documentResource)
+      .set({ status })
+      .where(eq(documentResource.id, id));
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to update document resource status"
+    );
+  }
+}
+
+export async function getDocumentsByChat({ chatId }: { chatId: string }) {
+  try {
+    return await db
+      .select()
+      .from(documentResource)
+      .where(eq(documentResource.chatId, chatId))
+      .orderBy(asc(documentResource.createdAt));
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to get documents by chat"
+    );
+  }
+}
+
+export async function getDocumentResourceById({ id }: { id: string }) {
+  try {
+    const [doc] = await db
+      .select({ status: documentResource.status })
+      .from(documentResource)
+      .where(eq(documentResource.id, id))
+      .limit(1);
+    return doc ?? null;
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to get document resource"
+    );
+  }
+}
+
+export async function insertDocumentChunks({
+  chunks,
+}: {
+  chunks: Array<{
+    resourceId: string;
+    chatId: string;
+    content: string;
+    embedding: number[];
+    chunkIndex: number;
+  }>;
+}) {
+  try {
+    await db.insert(documentChunk).values(chunks);
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to insert document chunks"
+    );
+  }
+}
+
+export async function similaritySearch({
+  chatId,
+  embedding,
+  limit = 5,
+}: {
+  chatId: string;
+  embedding: number[];
+  limit?: number;
+}) {
+  try {
+    const embeddingStr = `[${embedding.join(",")}]`;
+    return await db
+      .select({
+        content: documentChunk.content,
+        chunkIndex: documentChunk.chunkIndex,
+        fileName: documentResource.fileName,
+      })
+      .from(documentChunk)
+      .innerJoin(
+        documentResource,
+        eq(documentChunk.resourceId, documentResource.id)
+      )
+      .where(eq(documentChunk.chatId, chatId))
+      .orderBy(sql`${documentChunk.embedding} <=> ${embeddingStr}::vector`)
+      .limit(limit);
+  } catch (_error) {
+    throw new ChatbotError(
+      "bad_request:database",
+      "Failed to run similarity search"
     );
   }
 }
