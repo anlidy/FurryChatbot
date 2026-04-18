@@ -66,16 +66,16 @@ export { getStreamContext };
  */
 function isVagueQuery(query: string): boolean {
   const vaguePatterns = [
-    /^(这个?|那个?|该)(文档|文件|资料|内容)/,  // "这个文档"、"这文档"
-    /^(总结|概括|介绍|说明)(一?下)?$/,        // "总结"、"概括一下"
-    /^(讲|说)(什么|啥)$/,                     // "讲什么"
-    /^(什么|啥)(内容|东西)$/,                 // "什么内容"
-    /^(帮我?|请)(看|读|分析)(一?下)?$/,       // "帮我看一下"
-    /^文档(内容|是什么|讲什么)/,              // "文档内容"
+    /^(这个?|那个?|该)(文档|文件|资料|内容)/, // "这个文档"、"这文档"
+    /^(总结|概括|介绍|说明)(一?下)?$/, // "总结"、"概括一下"
+    /^(讲|说)(什么|啥)$/, // "讲什么"
+    /^(什么|啥)(内容|东西)$/, // "什么内容"
+    /^(帮我?|请)(看|读|分析)(一?下)?$/, // "帮我看一下"
+    /^文档(内容|是什么|讲什么)/, // "文档内容"
   ];
-  
+
   const trimmed = query.trim();
-  return vaguePatterns.some(pattern => pattern.test(trimmed));
+  return vaguePatterns.some((pattern) => pattern.test(trimmed));
 }
 
 export async function POST(request: Request) {
@@ -228,21 +228,26 @@ export async function POST(request: Request) {
             : (content ?? "");
           console.log("[RAG Debug] hasRagDocs:", hasRagDocs);
           console.log("[RAG Debug] queryText:", queryText);
-          
+
           // 检查查询是否足够具体
-          const isSpecificQuery = queryText.length > 10 && 
-            !isVagueQuery(queryText);
-          
+          const isSpecificQuery =
+            queryText.length > 10 && !isVagueQuery(queryText);
+
           if (queryText && isSpecificQuery) {
             const embedding = await embedText(queryText);
             const chunks = await similaritySearch({ chatId: id, embedding });
             console.log("[RAG Debug] chunks found:", chunks.length);
             if (chunks.length > 0) {
               proactiveContext = ragContextPrompt(chunks);
-              console.log("[RAG Debug] proactiveContext length:", proactiveContext.length);
+              console.log(
+                "[RAG Debug] proactiveContext length:",
+                proactiveContext.length
+              );
             }
           } else if (queryText) {
-            console.log("[RAG Debug] Query too vague, skipping proactive retrieval. Model will use retrieveDocuments tool if needed.");
+            console.log(
+              "[RAG Debug] Query too vague, skipping proactive retrieval. Model will use retrieveDocuments tool if needed."
+            );
           }
         }
 
@@ -269,7 +274,10 @@ export async function POST(request: Request) {
               proactiveContext,
             });
             console.log("[RAG Debug] System prompt length:", prompt.length);
-            console.log("[RAG Debug] System prompt includes proactiveContext:", prompt.includes("Document Excerpt"));
+            console.log(
+              "[RAG Debug] System prompt includes proactiveContext:",
+              prompt.includes("Document Excerpt")
+            );
             return prompt;
           })(),
           messages: modelMessages,

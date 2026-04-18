@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/app/(auth)/auth";
-import { ingest } from "@/lib/rag/ingest";
 import { getChatById, saveChat } from "@/lib/db/queries";
+import { ingest } from "@/lib/rag/ingest";
 
 const DOCUMENT_TYPES = [
   "application/pdf",
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
     if (isDocument && chatId) {
       const fileType = file.type.includes("pdf") ? "pdf" : "docx";
-      
+
       // Ensure chat exists (create if needed)
       const existingChat = await getChatById({ id: chatId });
       if (!existingChat) {
@@ -84,11 +84,11 @@ export async function POST(request: Request) {
         buffer: fileBuffer,
       });
 
-      return NextResponse.json({ 
-        ...data, 
+      return NextResponse.json({
+        ...data,
         isDocument: true,
         resourceId,
-        status: "pending"
+        status: "pending",
       });
     }
 
