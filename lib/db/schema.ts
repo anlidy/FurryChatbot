@@ -2,6 +2,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import {
   boolean,
   foreignKey,
+  integer,
   json,
   pgTable,
   primaryKey,
@@ -9,6 +10,7 @@ import {
   timestamp,
   uuid,
   varchar,
+  vector,
 } from "drizzle-orm/pg-core";
 
 export const user = pgTable("User", {
@@ -215,3 +217,33 @@ export const customModel = pgTable("CustomModel", {
 });
 
 export type CustomModel = InferSelectModel<typeof customModel>;
+
+export const documentResource = pgTable("DocumentResource", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  chatId: uuid("chatId")
+    .notNull()
+    .references(() => chat.id, { onDelete: "cascade" }),
+  fileName: text("fileName").notNull(),
+  fileUrl: text("fileUrl").notNull(),
+  fileType: varchar("fileType", { length: 20 }).notNull(),
+  status: varchar("status", { enum: ["pending", "ready", "error"] })
+    .notNull()
+    .default("pending"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type DocumentResource = InferSelectModel<typeof documentResource>;
+
+export const documentChunk = pgTable("DocumentChunk", {
+  id: uuid("id").primaryKey().notNull().defaultRandom(),
+  resourceId: uuid("resourceId")
+    .notNull()
+    .references(() => documentResource.id, { onDelete: "cascade" }),
+  chatId: uuid("chatId").notNull(),
+  content: text("content").notNull(),
+  embedding: vector("embedding", { dimensions: 1024 }),
+  chunkIndex: integer("chunkIndex").notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type DocumentChunk = InferSelectModel<typeof documentChunk>;

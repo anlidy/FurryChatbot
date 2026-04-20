@@ -136,6 +136,39 @@ function PureMultimodalInput({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
+  const [pendingDocIds, setPendingDocIds] = useState<string[]>([]);
+
+  // Poll status for pending document ingestions
+  useEffect(() => {
+    if (pendingDocIds.length === 0) {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      const results = await Promise.all(
+        pendingDocIds.map(async (id) => {
+          const res = await fetch(`/api/documents/status?resourceId=${id}`);
+          const data = await res.json();
+          return { id, status: data.status as string };
+        })
+      );
+
+      const stillPending: string[] = [];
+      for (const { id, status } of results) {
+        if (status === "ready") {
+          // nothing — just remove from pending
+        } else if (status === "error") {
+          toast.error("Document processing failed. Please try again.");
+          setAttachments((curr) => curr.filter((a) => a.resourceId !== id));
+        } else {
+          stillPending.push(id);
+        }
+      }
+      setPendingDocIds(stillPending);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [pendingDocIds, setAttachments]);
 
   const submitForm = useCallback(() => {
     window.history.pushState({}, "", `/chat/${chatId}`);
@@ -176,32 +209,41 @@ function PureMultimodalInput({
     resetHeight,
   ]);
 
-  const uploadFile = useCallback(async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
+  const uploadFile = useCallback(
+    async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("chatId", chatId);
 
-    try {
-      const response = await fetch("/api/files/upload", {
-        method: "POST",
-        body: formData,
-      });
+      try {
+        const response = await fetch("/api/files/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        const { url, pathname, contentType } = data;
+        if (response.ok) {
+          const data = await response.json();
+          const { url, pathname, contentType, resourceId } = data;
 
-        return {
-          url,
-          name: pathname,
-          contentType,
-        };
+          if (resourceId) {
+            setPendingDocIds((prev) => [...prev, resourceId]);
+          }
+
+          return {
+            url,
+            name: pathname,
+            contentType,
+            resourceId,
+          };
+        }
+        const { error } = await response.json();
+        toast.error(error);
+      } catch (_error) {
+        toast.error("Failed to upload file, please try again!");
       }
-      const { error } = await response.json();
-      toast.error(error);
-    } catch (_error) {
-      toast.error("Failed to upload file, please try again!");
-    }
-  }, []);
+    },
+    [chatId]
+  );
 
   const handleFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -297,6 +339,7 @@ function PureMultimodalInput({
         )}
 
       <input
+        accept="image/jpeg,image/png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         className="pointer-events-none fixed -top-4 -left-4 size-0.5 opacity-0"
         multiple
         onChange={handleFileChange}
@@ -385,7 +428,11 @@ function PureMultimodalInput({
             <PromptInputSubmit
               className="size-8 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
               data-testid="send-button"
-              disabled={!input.trim() || uploadQueue.length > 0}
+              disabled={
+                !input.trim() ||
+                uploadQueue.length > 0 ||
+                pendingDocIds.length > 0
+              }
               status={status}
             >
               <ArrowUpIcon size={14} />

@@ -56,24 +56,77 @@ About the origin of user's request:
 - country: ${requestHints.country}
 `;
 
+export const ragPrompt = `The user has uploaded documents to this conversation.
+
+When the user asks about document content:
+- If relevant document excerpts are already provided in the system prompt, answer directly based on them
+- If the system prompt lacks relevant content, or the user's question requires searching for specific information, use the \`retrieveDocuments\` tool
+
+For general/summary questions (e.g., "what is this document about", "summarize this", "what are the main points"):
+- Proactively use the \`retrieveDocuments\` tool multiple times with different short keywords
+- Suggested query terms:
+  * First call: "main content" or "topic"
+  * Second call: "key points" or "core ideas"
+  * Third call: "conclusion" or "summary"
+- Use short keywords (2-5 words) for each query, avoid long sentences
+
+Best practices when using \`retrieveDocuments\`:
+- Use short, specific keywords (2-5 words)
+- Avoid combining multiple concepts in one query
+- For complex questions, make multiple queries, each focusing on one aspect`;
+
+export function ragContextPrompt(
+  chunks: Array<{ content: string; fileName: string; chunkIndex: number }>
+): string {
+  const excerpts = chunks
+    .map(
+      (c, idx) =>
+        `### Document Excerpt ${idx + 1} [Source: ${c.fileName}, Chunk ${c.chunkIndex}]\n${c.content}`
+    )
+    .join("\n\n");
+  return `Below are excerpts from the user's uploaded documents. Please answer the user's question based on these excerpts:
+
+${excerpts}
+
+Answer the user's question based on the above document content. If the excerpts are insufficient to answer the question, indicate that more information is needed.`;
+}
+
 export const systemPrompt = ({
   selectedChatModel,
   requestHints,
+  hasRagDocs = false,
+  proactiveContext = "",
 }: {
   selectedChatModel: string;
   requestHints: RequestHints;
+  hasRagDocs?: boolean;
+  proactiveContext?: string;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
 
-  // reasoning models don't need artifacts prompt (they can't use tools)
-  if (
+  const isReasoningModel =
     selectedChatModel.includes("reasoning") ||
-    selectedChatModel.includes("thinking")
-  ) {
-    return `${regularPrompt}\n\n${requestPrompt}`;
+    selectedChatModel.includes("thinking");
+
+  // 基础提示词
+  const parts = [regularPrompt, requestPrompt];
+
+  // 思考模型也需要工具说明，但可以简化
+  if (!isReasoningModel) {
+    parts.push(artifactsPrompt);
   }
 
-  return `${regularPrompt}\n\n${requestPrompt}\n\n${artifactsPrompt}`;
+  // RAG 相关提示词
+  if (hasRagDocs) {
+    parts.push(ragPrompt);
+  }
+
+  // 文档内容注入（所有模型都需要）
+  if (proactiveContext) {
+    parts.push(proactiveContext);
+  }
+
+  return parts.join("\n\n");
 };
 
 export const codePrompt = `

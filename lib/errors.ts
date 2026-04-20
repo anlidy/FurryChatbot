@@ -16,7 +16,8 @@ export type Surface =
   | "vote"
   | "document"
   | "suggestions"
-  | "activate_gateway";
+  | "activate_gateway"
+  | "rag";
 
 export type ErrorCode = `${ErrorType}:${Surface}`;
 
@@ -33,6 +34,7 @@ export const visibilityBySurface: Record<Surface, ErrorVisibility> = {
   document: "response",
   suggestions: "response",
   activate_gateway: "response",
+  rag: "response",
 };
 
 export class ChatbotError extends Error {
@@ -40,7 +42,7 @@ export class ChatbotError extends Error {
   surface: Surface;
   statusCode: number;
 
-  constructor(errorCode: ErrorCode, cause?: string) {
+  constructor(errorCode: ErrorCode, cause?: string | unknown) {
     super();
 
     const [type, surface] = errorCode.split(":");
@@ -62,7 +64,10 @@ export class ChatbotError extends Error {
       console.error({
         code,
         message,
-        cause,
+        cause:
+          cause instanceof Error
+            ? { name: cause.name, message: cause.message, stack: cause.stack }
+            : cause,
       });
 
       return Response.json(
@@ -111,6 +116,9 @@ export function getMessageByErrorCode(errorCode: ErrorCode): string {
       return "You need to sign in to view this document. Please sign in and try again.";
     case "bad_request:document":
       return "The request to create or update the document was invalid. Please check your input and try again.";
+
+    case "bad_request:rag":
+      return "Failed to ingest document. Please check the document and try again.";
 
     default:
       return "Something went wrong. Please try again later.";
