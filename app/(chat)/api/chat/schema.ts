@@ -41,6 +41,7 @@ export const postRequestBodySchema = z.object({
   message: userMessageSchema.optional(),
   messages: z.array(messageSchema).optional(),
   selectedChatModel: z.string(),
+  mode: z.enum(["fast", "thinking"]).optional().default("fast"),
 });
 
 export type PostRequestBody = z.infer<typeof postRequestBodySchema>;

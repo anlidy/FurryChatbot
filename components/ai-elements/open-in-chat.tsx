@@ -215,8 +215,8 @@ export const OpenInContent = ({ className, ...props }: OpenInContentProps) => (
 
 export type OpenInItemProps = ComponentProps<typeof DropdownMenuItem>;
 
-export const OpenInItem = (props: OpenInItemProps) => (
-  <DropdownMenuItem {...props} />
+export const OpenInItem = ({ className, ...props }: OpenInItemProps) => (
+  <DropdownMenuItem className={cn("cursor-pointer", className)} {...props} />
 );
 
 export type OpenInLabelProps = ComponentProps<typeof DropdownMenuLabel>;

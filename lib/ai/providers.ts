@@ -1,10 +1,6 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
-import {
-  customProvider,
-  extractReasoningMiddleware,
-  wrapLanguageModel,
-} from "ai";
+import { customProvider } from "ai";
 import { isTestEnvironment } from "../constants";
 import {
   getCustomProviderById,
@@ -13,8 +9,6 @@ import {
 } from "../db/queries";
 import { decrypt } from "../encryption";
 import { ChatbotError } from "../errors";
-
-const THINKING_SUFFIX_REGEX = /-thinking$/;
 
 export const myProvider = isTestEnvironment
   ? (() => {
@@ -80,20 +74,7 @@ export async function getLanguageModel(modelId: string, userId: string) {
     apiKey
   );
 
-  const isReasoningModel =
-    rawModelId.endsWith("-thinking") ||
-    (rawModelId.includes("reasoning") && !rawModelId.includes("non-reasoning"));
-
-  const cleanModelId = rawModelId.replace(THINKING_SUFFIX_REGEX, "");
-
-  if (isReasoningModel) {
-    return wrapLanguageModel({
-      model: instance(cleanModelId),
-      middleware: extractReasoningMiddleware({ tagName: "thinking" }),
-    });
-  }
-
-  return instance(cleanModelId);
+  return instance(rawModelId);
 }
 
 async function getSystemModel(userId: string) {
