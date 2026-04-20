@@ -91,7 +91,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { id, message, messages, selectedChatModel, mode = "fast" } = requestBody;
+    const {
+      id,
+      message,
+      messages,
+      selectedChatModel,
+      mode = "fast",
+    } = requestBody;
 
     const [botResult, session] = await Promise.all([checkBotId(), auth()]);
 
@@ -212,10 +218,7 @@ export async function POST(request: Request) {
     const stream = createUIMessageStream({
       originalMessages: isToolApprovalFlow ? uiMessages : undefined,
       execute: async ({ writer: dataStream }) => {
-        let model = await getLanguageModel(
-          selectedChatModel,
-          session.user.id
-        );
+        let model = await getLanguageModel(selectedChatModel, session.user.id);
 
         // Wrap model with reasoning middleware if thinking mode is enabled
         if (isThinkingMode) {
@@ -226,7 +229,14 @@ export async function POST(request: Request) {
         }
 
         // Build provider-specific options for thinking mode
-        let providerOptions = undefined;
+        let providerOptions:
+          | {
+              anthropic: {
+                thinking: { type: "enabled"; budgetTokens: number };
+              };
+            }
+          | { openai: { thinking: { type: "enabled" } } }
+          | undefined;
         if (isThinkingMode) {
           if (provider.format === "anthropic") {
             providerOptions = {
@@ -297,7 +307,6 @@ export async function POST(request: Request) {
           model,
           system: (() => {
             const prompt = systemPrompt({
-              selectedChatModel,
               requestHints,
               hasRagDocs,
               proactiveContext,

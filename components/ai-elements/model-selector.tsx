@@ -84,7 +84,10 @@ export const ModelSelectorGroup = (props: ModelSelectorGroupProps) => (
 
 export type ModelSelectorItemProps = ComponentProps<typeof CommandItem>;
 
-export const ModelSelectorItem = ({ className, ...props }: ModelSelectorItemProps) => (
+export const ModelSelectorItem = ({
+  className,
+  ...props
+}: ModelSelectorItemProps) => (
   <CommandItem className={cn("cursor-pointer", className)} {...props} />
 );
 

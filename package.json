@@ -128,7 +128,8 @@
   "packageManager": "pnpm@9.12.3",
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
-      "ultracite fix"
+      "ultracite fix",
+      "pnpm format"
     ]
   }
 }

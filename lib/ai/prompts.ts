@@ -92,12 +92,10 @@ Answer the user's question based on the above document content. If the excerpts 
 }
 
 export const systemPrompt = ({
-  selectedChatModel,
   requestHints,
   hasRagDocs = false,
   proactiveContext = "",
 }: {
-  selectedChatModel: string;
   requestHints: RequestHints;
   hasRagDocs?: boolean;
   proactiveContext?: string;
