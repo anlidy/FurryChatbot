@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/app/(auth)/auth";
-import { getChatById, saveChat } from "@/lib/db/queries";
+import { getChatById } from "@/lib/db/queries";
 import { ingest } from "@/lib/rag/ingest";
 
 const DOCUMENT_TYPES = [
@@ -22,6 +22,10 @@ const FileSchema = z.object({
         ["image/jpeg", "image/png", ...DOCUMENT_TYPES].includes(file.type),
       { message: "File type should be JPEG, PNG, PDF, or DOCX" }
     ),
+});
+
+const RequestSchema = z.object({
+  chatId: z.string().uuid().optional(),
 });
 
 export async function POST(request: Request) {
@@ -44,6 +48,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
+    // Validate chatId if provided
+    if (chatId) {
+      const validatedRequest = RequestSchema.safeParse({ chatId });
+      if (!validatedRequest.success) {
+        return NextResponse.json(
+          { error: "Invalid chatId format" },
+          { status: 400 }
+        );
+      }
+    }
+
     const validatedFile = FileSchema.safeParse({ file });
 
     if (!validatedFile.success) {
@@ -63,16 +78,20 @@ export async function POST(request: Request) {
     if (isDocument && chatId) {
       const fileType = file.type.includes("pdf") ? "pdf" : "docx";
 
-      // Ensure chat exists (create if needed)
+      // Validate chat exists and user owns it
       const existingChat = await getChatById({ id: chatId });
       if (!existingChat) {
-        console.log("[Upload] Creating new chat:", chatId);
-        await saveChat({
-          id: chatId,
-          userId: session.user.id,
-          title: "New chat",
-          visibility: "private",
-        });
+        return NextResponse.json(
+          { error: "Chat not found. Create chat first." },
+          { status: 404 }
+        );
+      }
+
+      if (existingChat.userId !== session.user.id) {
+        return NextResponse.json(
+          { error: "Unauthorized to upload to this chat" },
+          { status: 403 }
+        );
       }
 
       // Ingest document (creates record immediately, processes in background)

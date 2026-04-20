@@ -22,7 +22,7 @@ When a user uploads a PDF or DOCX file in a chat, the system parses, chunks, emb
 1. Upload file bytes to LlamaCloud via `client.files.create({ purpose: 'parse' })`
 2. Parse with `client.parsing.parse({ tier: 'agentic', expand: ['markdown_full'] })`
 3. Split resulting markdown into chunks (~500 tokens, paragraph boundaries)
-4. Embed each chunk via Zhipu `embedding-3` (2048 dimensions)
+4. Embed each chunk via Zhipu `embedding-3` (1024 dimensions)
 5. Batch-insert chunks into `document_chunks`
 6. Update `document_resources.status` to `'ready'` (or `'error'` on failure)
 

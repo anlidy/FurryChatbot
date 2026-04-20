@@ -18,7 +18,7 @@ api/files/upload/route.ts
           chunk by paragraph (~500 tokens)
                 │
                 ▼
-          Zhipu embedding-3 (2048d)
+          Zhipu embedding-3 (1024d)
                 │
                 ▼
           pgvector: document_chunks

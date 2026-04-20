@@ -285,7 +285,7 @@
         },
         "embedding": {
           "name": "embedding",
-          "type": "vector(2048)",
+          "type": "vector(1024)",
           "primaryKey": false,
           "notNull": false
         },
