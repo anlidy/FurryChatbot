@@ -128,6 +128,8 @@ export function Chat({
           description: error.message || "Oops, an error occurred!",
         });
       }
+      // Force status reset on error to prevent stuck state
+      mutate(unstable_serialize(getChatHistoryPaginationKey));
     },
   });
 
