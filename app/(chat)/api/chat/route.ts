@@ -14,20 +14,22 @@ import { after } from "next/server";
 import { createResumableStreamContext } from "resumable-stream";
 import { auth, type UserType } from "@/app/(auth)/auth";
 import { entitlementsByUserType } from "@/lib/ai/entitlements";
+import { promptBuilder } from "@/lib/ai/prompts/builder";
 import {
-  type RequestHints,
+  buildDocsStatusMessage,
   ragContextPrompt,
-  systemPrompt,
-} from "@/lib/ai/prompts";
+} from "@/lib/ai/prompts/dynamic-messages";
+import type { RequestHints } from "@/lib/ai/prompts/types";
 import { getLanguageModel } from "@/lib/ai/providers";
-import { createDocument } from "@/lib/ai/tools/create-document";
-import { getWeather } from "@/lib/ai/tools/get-weather";
-import { requestSuggestions } from "@/lib/ai/tools/request-suggestions";
+import { createDocument } from "@/lib/ai/tools/artifacts/create-document";
+import { requestSuggestions } from "@/lib/ai/tools/artifacts/request-suggestions";
+import { updateDocument } from "@/lib/ai/tools/artifacts/update-document";
 import {
-  hasReadyDocuments,
-  retrieveDocuments,
-} from "@/lib/ai/tools/retrieve-documents";
-import { updateDocument } from "@/lib/ai/tools/update-document";
+  getDocsStatus,
+  getDocumentsStatus,
+} from "@/lib/ai/tools/rag/get-docs-status";
+import { retrieveDocuments } from "@/lib/ai/tools/rag/retrieve-documents";
+import { getWeather } from "@/lib/ai/tools/weather/get-weather";
 import { isProductionEnvironment } from "@/lib/constants";
 import {
   createStreamId,
@@ -253,10 +255,24 @@ export async function POST(request: Request) {
           }
         }
 
-        const hasRagDocs = await hasReadyDocuments(id);
+        const docsStatus = await getDocsStatus(id);
 
-        let proactiveContext = "";
-        if (hasRagDocs) {
+        // Build static system prompt (built once, reused)
+        const staticSystemPrompt = promptBuilder.build({ requestHints });
+
+        // Prepare dynamic system messages
+        const dynamicMessages: Array<{ role: "system"; content: string }> = [];
+
+        // Inject document status if documents exist
+        if (docsStatus.hasDocuments) {
+          const docsStatusMsg = buildDocsStatusMessage(docsStatus);
+          if (docsStatusMsg) {
+            dynamicMessages.push({ role: "system", content: docsStatusMsg });
+          }
+        }
+
+        // Proactive retrieval for specific queries
+        if (docsStatus.readyCount > 0) {
           const lastUserMsg = [...modelMessages]
             .reverse()
             .find((m) => m.role === "user");
@@ -269,7 +285,7 @@ export async function POST(request: Request) {
                 .map((p) => p.text)
                 .join(" ")
             : (content ?? "");
-          console.log("[RAG Debug] hasRagDocs:", hasRagDocs);
+          console.log("[RAG Debug] docsStatus:", docsStatus);
           console.log("[RAG Debug] queryText:", queryText);
 
           // 检查查询是否足够具体
@@ -281,10 +297,14 @@ export async function POST(request: Request) {
             const chunks = await similaritySearch({ chatId: id, embedding });
             console.log("[RAG Debug] chunks found:", chunks.length);
             if (chunks.length > 0) {
-              proactiveContext = ragContextPrompt(chunks);
+              const proactiveContextMsg = ragContextPrompt(chunks);
+              dynamicMessages.push({
+                role: "system",
+                content: proactiveContextMsg,
+              });
               console.log(
                 "[RAG Debug] proactiveContext length:",
-                proactiveContext.length
+                proactiveContextMsg.length
               );
             }
           } else if (queryText) {
@@ -294,31 +314,23 @@ export async function POST(request: Request) {
           }
         }
 
-        // All tools available in both modes
+        // All tools always available (including retrieveDocuments and getDocumentsStatus)
         const activeTools = [
           "getWeather",
           "createDocument",
           "updateDocument",
           "requestSuggestions",
-          ...(hasRagDocs ? ["retrieveDocuments"] : []),
+          "retrieveDocuments",
+          "getDocumentsStatus",
         ];
+
+        // Construct final messages: static prompt → history → dynamic messages → current message
+        const finalMessages = [...dynamicMessages, ...modelMessages];
 
         const result = streamText({
           model,
-          system: (() => {
-            const prompt = systemPrompt({
-              requestHints,
-              hasRagDocs,
-              proactiveContext,
-            });
-            console.log("[RAG Debug] System prompt length:", prompt.length);
-            console.log(
-              "[RAG Debug] System prompt includes proactiveContext:",
-              prompt.includes("Document Excerpt")
-            );
-            return prompt;
-          })(),
-          messages: modelMessages,
+          system: staticSystemPrompt,
+          messages: finalMessages,
           stopWhen: stepCountIs(5),
           experimental_activeTools: activeTools as never[],
           providerOptions,
@@ -328,6 +340,7 @@ export async function POST(request: Request) {
             updateDocument: updateDocument({ session, dataStream }),
             requestSuggestions: requestSuggestions({ session, dataStream }),
             retrieveDocuments: retrieveDocuments({ chatId: id }),
+            getDocumentsStatus: getDocumentsStatus({ chatId: id }),
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

@@ -20,19 +20,60 @@ Important guidelines:
   * "key points" - get main arguments
   * "conclusion" - get summary content
   * "background" - get context information
+- Optionally specify documentIds to search only within specific documents
+- Use the getDocumentsStatus tool to get document IDs and filenames if needed
 
 Examples:
 - User asks "what is this document about" → Query sequentially: "topic", "main content", "purpose"
 - User asks "summarize this" → Query sequentially: "key points", "main conclusions", "highlights"
-- User asks "what technologies are mentioned" → Query: "technology", "methods"`,
+- User asks "what technologies are mentioned" → Query: "technology", "methods"
+- User asks about a specific document → First call getDocumentsStatus to get the document ID, then include documentIds parameter`,
     inputSchema: z.object({
       query: z
         .string()
         .describe(
           "Short keyword or phrase (recommended 2-5 words) to find relevant content. Avoid long sentences or combinations of multiple concepts."
         ),
+      documentIds: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Optional array of document IDs to limit search scope. If not provided, searches all ready documents. Use getDocumentsStatus tool to get document IDs."
+        ),
     }),
-    execute: async ({ query }) => {
+    execute: async ({ query, documentIds }) => {
+      // Check if documents exist
+      const docs = await getDocumentsByChat({ chatId });
+      if (docs.length === 0) {
+        return {
+          message:
+            "No documents are available in this conversation. Please upload documents first using the file upload button.",
+          chunks: [],
+        };
+      }
+
+      // Filter by documentIds if provided
+      let targetDocs = docs;
+      if (documentIds && documentIds.length > 0) {
+        targetDocs = docs.filter((d) => documentIds.includes(d.id));
+        if (targetDocs.length === 0) {
+          return {
+            message: "The specified document IDs were not found.",
+            chunks: [],
+          };
+        }
+      }
+
+      // Check if any documents are ready
+      const readyDocs = targetDocs.filter((d) => d.status === "ready");
+      if (readyDocs.length === 0) {
+        return {
+          message:
+            "Documents are still processing. Please wait a moment and try again.",
+          chunks: [],
+        };
+      }
+
       const embedding = await embedText(query);
       const chunks = await similaritySearch({ chatId, embedding });
       console.log(
@@ -45,12 +86,3 @@ Examples:
       }));
     },
   });
-
-export async function hasReadyDocuments(chatId: string): Promise<boolean> {
-  const docs = await getDocumentsByChat({ chatId });
-  const hasReady = docs.some((d) => d.status === "ready");
-  console.log(
-    `[RAG Debug] Chat ${chatId} has ${docs.length} documents, ${docs.filter((d) => d.status === "ready").length} ready`
-  );
-  return hasReady;
-}
