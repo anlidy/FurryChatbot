@@ -366,21 +366,21 @@ function PureMultimodalInput({
         className="rounded-2xl border border-border bg-card p-3 shadow-sm transition-all duration-200 focus-within:border-muted-foreground/30 hover:border-muted-foreground/30"
         onSubmit={(event) => {
           event.preventDefault();
-          
+
           if (!input.trim() && attachments.length === 0) {
             return;
           }
-          
+
           if (uploadQueue.length > 0 || pendingDocIds.length > 0) {
             toast.error("Please wait for file uploads to complete");
             return;
           }
-          
+
           if (status !== "ready") {
             toast.error("Please wait for the model to finish its response!");
             return;
           }
-          
+
           submitForm();
         }}
       >
