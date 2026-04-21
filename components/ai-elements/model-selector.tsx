@@ -84,8 +84,11 @@ export const ModelSelectorGroup = (props: ModelSelectorGroupProps) => (
 
 export type ModelSelectorItemProps = ComponentProps<typeof CommandItem>;
 
-export const ModelSelectorItem = (props: ModelSelectorItemProps) => (
-  <CommandItem {...props} />
+export const ModelSelectorItem = ({
+  className,
+  ...props
+}: ModelSelectorItemProps) => (
+  <CommandItem className={cn("cursor-pointer", className)} {...props} />
 );
 
 export type ModelSelectorShortcutProps = ComponentProps<typeof CommandShortcut>;

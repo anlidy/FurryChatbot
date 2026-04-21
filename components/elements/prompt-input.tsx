@@ -228,7 +228,7 @@ export const PromptInputModelSelectItem = ({
   className,
   ...props
 }: PromptInputModelSelectItemProps) => (
-  <SelectItem className={cn(className)} {...props} />
+  <SelectItem className={cn("cursor-pointer", className)} {...props} />
 );
 
 export type PromptInputModelSelectValueProps = ComponentProps<

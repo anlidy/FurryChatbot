@@ -3,9 +3,11 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  extractReasoningMiddleware,
   generateId,
   stepCountIs,
   streamText,
+  wrapLanguageModel,
 } from "ai";
 import { checkBotId } from "botid/server";
 import { after } from "next/server";
@@ -89,7 +91,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { id, message, messages, selectedChatModel } = requestBody;
+    const {
+      id,
+      message,
+      messages,
+      selectedChatModel,
+      mode = "fast",
+    } = requestBody;
 
     const [botResult, session] = await Promise.all([checkBotId(), auth()]);
 
@@ -112,6 +120,16 @@ export async function POST(request: Request) {
     }
     if (!provider.isEnabled) {
       return Response.json({ error: "Provider is disabled" }, { status: 400 });
+    }
+
+    const isThinkingMode = mode === "thinking";
+
+    // Validate provider supports thinking mode
+    if (isThinkingMode && !["anthropic", "openai"].includes(provider.format)) {
+      return Response.json(
+        { error: "This provider doesn't support thinking mode" },
+        { status: 400 }
+      );
     }
 
     await checkIpRateLimit(ipAddress(request));
@@ -181,11 +199,6 @@ export async function POST(request: Request) {
       });
     }
 
-    const isReasoningModel =
-      selectedChatModel.endsWith("-thinking") ||
-      (selectedChatModel.includes("reasoning") &&
-        !selectedChatModel.includes("non-reasoning"));
-
     const IMAGE_TYPES = ["image/jpeg", "image/png"];
     const filteredUIMessages: ChatMessage[] = uiMessages.map((msg) => {
       if (msg.role !== "user") {
@@ -205,10 +218,40 @@ export async function POST(request: Request) {
     const stream = createUIMessageStream({
       originalMessages: isToolApprovalFlow ? uiMessages : undefined,
       execute: async ({ writer: dataStream }) => {
-        const model = await getLanguageModel(
-          selectedChatModel,
-          session.user.id
-        );
+        let model = await getLanguageModel(selectedChatModel, session.user.id);
+
+        // Wrap model with reasoning middleware if thinking mode is enabled
+        if (isThinkingMode) {
+          model = wrapLanguageModel({
+            model,
+            middleware: extractReasoningMiddleware({ tagName: "thinking" }),
+          });
+        }
+
+        // Build provider-specific options for thinking mode
+        let providerOptions:
+          | {
+              anthropic: {
+                thinking: { type: "enabled"; budgetTokens: number };
+              };
+            }
+          | { openai: { thinking: { type: "enabled" } } }
+          | undefined;
+        if (isThinkingMode) {
+          if (provider.format === "anthropic") {
+            providerOptions = {
+              anthropic: {
+                thinking: { type: "enabled" as const, budgetTokens: 10_000 },
+              },
+            };
+          } else if (provider.format === "openai") {
+            providerOptions = {
+              openai: {
+                thinking: { type: "enabled" as const },
+              },
+            };
+          }
+        }
 
         const hasRagDocs = await hasReadyDocuments(id);
 
@@ -251,24 +294,19 @@ export async function POST(request: Request) {
           }
         }
 
-        const activeTools = isReasoningModel
-          ? [
-              // 思考模型也需要 RAG 工具来访问文档
-              ...(hasRagDocs ? ["retrieveDocuments"] : []),
-            ]
-          : [
-              "getWeather",
-              "createDocument",
-              "updateDocument",
-              "requestSuggestions",
-              ...(hasRagDocs ? ["retrieveDocuments"] : []),
-            ];
+        // All tools available in both modes
+        const activeTools = [
+          "getWeather",
+          "createDocument",
+          "updateDocument",
+          "requestSuggestions",
+          ...(hasRagDocs ? ["retrieveDocuments"] : []),
+        ];
 
         const result = streamText({
           model,
           system: (() => {
             const prompt = systemPrompt({
-              selectedChatModel,
               requestHints,
               hasRagDocs,
               proactiveContext,
@@ -283,13 +321,7 @@ export async function POST(request: Request) {
           messages: modelMessages,
           stopWhen: stepCountIs(5),
           experimental_activeTools: activeTools as never[],
-          providerOptions: isReasoningModel
-            ? {
-                anthropic: {
-                  thinking: { type: "enabled", budgetTokens: 10_000 },
-                },
-              }
-            : undefined,
+          providerOptions,
           tools: {
             getWeather,
             createDocument: createDocument({ session, dataStream }),
@@ -304,7 +336,7 @@ export async function POST(request: Request) {
         });
 
         dataStream.merge(
-          result.toUIMessageStream({ sendReasoning: isReasoningModel })
+          result.toUIMessageStream({ sendReasoning: isThinkingMode })
         );
 
         if (titlePromise) {

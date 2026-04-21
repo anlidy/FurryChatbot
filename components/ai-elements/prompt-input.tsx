@@ -1024,7 +1024,7 @@ export const PromptInputActionMenuItem = ({
   className,
   ...props
 }: PromptInputActionMenuItemProps) => (
-  <DropdownMenuItem className={cn(className)} {...props} />
+  <DropdownMenuItem className={cn("cursor-pointer", className)} {...props} />
 );
 
 // Note: Actions that perform side-effects (like opening a file dialog)
@@ -1267,7 +1267,7 @@ export const PromptInputSelectItem = ({
   className,
   ...props
 }: PromptInputSelectItemProps) => (
-  <SelectItem className={cn(className)} {...props} />
+  <SelectItem className={cn("cursor-pointer", className)} {...props} />
 );
 
 export type PromptInputSelectValueProps = ComponentProps<typeof SelectValue>;

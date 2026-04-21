@@ -92,36 +92,25 @@ Answer the user's question based on the above document content. If the excerpts 
 }
 
 export const systemPrompt = ({
-  selectedChatModel,
   requestHints,
   hasRagDocs = false,
   proactiveContext = "",
 }: {
-  selectedChatModel: string;
   requestHints: RequestHints;
   hasRagDocs?: boolean;
   proactiveContext?: string;
 }) => {
   const requestPrompt = getRequestPromptFromHints(requestHints);
 
-  const isReasoningModel =
-    selectedChatModel.includes("reasoning") ||
-    selectedChatModel.includes("thinking");
-
   // 基础提示词
-  const parts = [regularPrompt, requestPrompt];
-
-  // 思考模型也需要工具说明，但可以简化
-  if (!isReasoningModel) {
-    parts.push(artifactsPrompt);
-  }
+  const parts = [regularPrompt, requestPrompt, artifactsPrompt];
 
   // RAG 相关提示词
   if (hasRagDocs) {
     parts.push(ragPrompt);
   }
 
-  // 文档内容注入（所有模型都需要）
+  // 文档内容注入
   if (proactiveContext) {
     parts.push(proactiveContext);
   }

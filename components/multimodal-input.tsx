@@ -40,6 +40,7 @@ import {
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from "./icons";
 import { PreviewAttachment } from "./preview-attachment";
 import { SuggestedActions } from "./suggested-actions";
+import { ThinkingModeToggle } from "./thinking-mode-toggle";
 import { Button } from "./ui/button";
 
 function setCookie(name: string, value: string) {
@@ -138,6 +139,11 @@ function PureMultimodalInput({
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
   const [pendingDocIds, setPendingDocIds] = useState<string[]>([]);
 
+  const [thinkingMode, setThinkingMode] = useLocalStorage<"fast" | "thinking">(
+    "thinking-mode",
+    "fast"
+  );
+
   // Poll status for pending document ingestions
   useEffect(() => {
     if (pendingDocIds.length === 0) {
@@ -173,21 +179,28 @@ function PureMultimodalInput({
   const submitForm = useCallback(() => {
     window.history.pushState({}, "", `/chat/${chatId}`);
 
-    sendMessage({
-      role: "user",
-      parts: [
-        ...attachments.map((attachment) => ({
-          type: "file" as const,
-          url: attachment.url,
-          name: attachment.name,
-          mediaType: attachment.contentType,
-        })),
-        {
-          type: "text",
-          text: input,
+    sendMessage(
+      {
+        role: "user",
+        parts: [
+          ...attachments.map((attachment) => ({
+            type: "file" as const,
+            url: attachment.url,
+            name: attachment.name,
+            mediaType: attachment.contentType,
+          })),
+          {
+            type: "text",
+            text: input,
+          },
+        ],
+      },
+      {
+        body: {
+          mode: thinkingMode,
         },
-      ],
-    });
+      }
+    );
 
     setAttachments([]);
     setLocalStorageInput("");
@@ -207,6 +220,7 @@ function PureMultimodalInput({
     width,
     chatId,
     resetHeight,
+    thinkingMode,
   ]);
 
   const uploadFile = useCallback(
@@ -411,33 +425,35 @@ function PureMultimodalInput({
         </div>
         <PromptInputToolbar className="border-top-0! border-t-0! p-0 shadow-none dark:border-0 dark:border-transparent!">
           <PromptInputTools className="gap-0 sm:gap-0.5">
-            <AttachmentsButton
-              fileInputRef={fileInputRef}
-              selectedModelId={selectedModelId}
-              status={status}
+            <AttachmentsButton fileInputRef={fileInputRef} status={status} />
+            <ThinkingModeToggle
+              onChange={setThinkingMode}
+              value={thinkingMode}
             />
+          </PromptInputTools>
+
+          <div className="flex items-center gap-0.5">
             <ModelSelectorCompact
               onModelChange={onModelChange}
               selectedModelId={selectedModelId}
             />
-          </PromptInputTools>
-
-          {status === "submitted" ? (
-            <StopButton setMessages={setMessages} stop={stop} />
-          ) : (
-            <PromptInputSubmit
-              className="size-8 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
-              data-testid="send-button"
-              disabled={
-                !input.trim() ||
-                uploadQueue.length > 0 ||
-                pendingDocIds.length > 0
-              }
-              status={status}
-            >
-              <ArrowUpIcon size={14} />
-            </PromptInputSubmit>
-          )}
+            {status === "submitted" ? (
+              <StopButton setMessages={setMessages} stop={stop} />
+            ) : (
+              <PromptInputSubmit
+                className="size-8 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
+                data-testid="send-button"
+                disabled={
+                  !input.trim() ||
+                  uploadQueue.length > 0 ||
+                  pendingDocIds.length > 0
+                }
+                status={status}
+              >
+                <ArrowUpIcon size={14} />
+              </PromptInputSubmit>
+            )}
+          </div>
         </PromptInputToolbar>
       </PromptInput>
     </div>
@@ -467,20 +483,15 @@ export const MultimodalInput = memo(
 function PureAttachmentsButton({
   fileInputRef,
   status,
-  selectedModelId,
 }: {
   fileInputRef: React.MutableRefObject<HTMLInputElement | null>;
   status: UseChatHelpers<ChatMessage>["status"];
-  selectedModelId: string;
 }) {
-  const isReasoningModel =
-    selectedModelId.includes("reasoning") || selectedModelId.includes("think");
-
   return (
     <Button
       className="aspect-square h-8 rounded-lg p-1 transition-colors hover:bg-accent"
       data-testid="attachments-button"
-      disabled={status !== "ready" || isReasoningModel}
+      disabled={status !== "ready"}
       onClick={(event) => {
         event.preventDefault();
         fileInputRef.current?.click();
@@ -542,11 +553,11 @@ function PureModelSelectorCompact({
     <ModelSelector onOpenChange={setOpen} open={open}>
       <ModelSelectorTrigger asChild>
         <Button
-          className="h-8 w-[200px] justify-between px-2"
+          className="h-8 w-[120px] justify-center px-2"
           data-testid="model-selector-trigger"
           variant="ghost"
         >
-          <ModelSelectorName>
+          <ModelSelectorName className="truncate text-center">
             {selectedModel?.name ?? "Select model"}
           </ModelSelectorName>
         </Button>
