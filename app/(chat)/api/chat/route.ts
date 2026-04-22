@@ -325,7 +325,27 @@ export async function POST(request: Request) {
         ];
 
         // Construct final messages: static prompt → history → dynamic messages → current message
-        const finalMessages = [...dynamicMessages, ...modelMessages];
+        // Insert dynamic messages before the last user message to maintain proper context flow
+        let finalMessages = [...modelMessages];
+
+        if (dynamicMessages.length > 0) {
+          // Find the index of the last user message
+          const lastUserMsgIndex = finalMessages
+            .map((m) => m.role)
+            .lastIndexOf("user");
+
+          if (lastUserMsgIndex === -1) {
+            // If no user message found (shouldn't happen), append dynamic messages at the end
+            finalMessages = [...finalMessages, ...dynamicMessages];
+          } else {
+            // Insert dynamic messages right before the last user message
+            finalMessages = [
+              ...finalMessages.slice(0, lastUserMsgIndex),
+              ...dynamicMessages,
+              ...finalMessages.slice(lastUserMsgIndex),
+            ];
+          }
+        }
 
         const result = streamText({
           model,

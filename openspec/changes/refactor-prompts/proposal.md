@@ -26,6 +26,6 @@ The current prompt system mixes static rules and dynamic session state together,
 ## Impact
 
 - `lib/ai/prompts.ts`: Delete and refactor into modular structure, split into `prompts/` directory
-- `lib/ai/tools/retrieve-documents.ts`: Modify tool parameters to support document ID filtering
+- `lib/ai/tools/rag/retrieve-documents.ts`: Modify tool parameters to support document ID filtering
 - `app/(chat)/api/chat/route.ts`: Completely rewrite message construction logic using new builder and dynamic injection
 - **BREAKING**: Delete old `systemPrompt()` function, switch directly to new implementation

@@ -1,7 +1,25 @@
 import { tool } from "ai";
 import { z } from "zod";
-import type { DocsStatusResult } from "@/lib/ai/prompts/types";
+import type {
+  DocsStatusResult,
+  DocumentInfo,
+  DocumentStatus,
+} from "@/lib/ai/prompts/types";
 import { getDocumentsByChat } from "@/lib/db/queries";
+
+/**
+ * Normalize database document status to our DocumentStatus type
+ */
+function normalizeDocumentStatus(dbStatus: string): DocumentStatus {
+  switch (dbStatus) {
+    case "ready":
+      return "ready";
+    case "error":
+      return "failed";
+    default:
+      return "processing";
+  }
+}
 
 /**
  * Get detailed document status for a chat session (internal function)
@@ -25,15 +43,11 @@ export async function getDocsStatus(chatId: string): Promise<DocsStatusResult> {
     };
   }
 
-  // Map database status to our type
-  const mappedDocuments = documents.map((doc) => ({
+  // Map database documents to DocumentInfo type
+  const mappedDocuments: DocumentInfo[] = documents.map((doc) => ({
     id: doc.id,
     fileName: doc.fileName,
-    status: (doc.status === "ready"
-      ? "ready"
-      : doc.status === "error"
-        ? "failed"
-        : "processing") as "ready" | "processing" | "failed",
+    status: normalizeDocumentStatus(doc.status),
     createdAt: doc.createdAt,
   }));
 
